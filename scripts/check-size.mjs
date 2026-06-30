@@ -64,7 +64,7 @@ function findCandidateStart(line) {
     };
   }
 
-  const arrowMatch = line.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:<[^>{}]+>\s*)?(?:\(|[A-Za-z_$][\w$]*)/u);
+  const arrowMatch = line.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:(?:<[^>{}]+>\s*)?\(|[A-Za-z_$][\w$]*\s*=>)/u);
 
   if (arrowMatch) {
     return {
@@ -73,11 +73,11 @@ function findCandidateStart(line) {
     };
   }
 
-  const methodMatch = line.match(/^\s*(?:public|private|protected|static|async|\s)*([A-Za-z_$][\w$]*)(?:\s*<[^>{}]*>)?\s*\(/u);
+  const methodMatch = line.match(/^(\s+)(?:public|private|protected|static|async|\s)*([A-Za-z_$][\w$]*)(?:\s*<[^>{}]*>)?\s*\(/u);
 
-  if (methodMatch && !CONTROL_KEYWORDS.has(methodMatch[1])) {
+  if (methodMatch && !CONTROL_KEYWORDS.has(methodMatch[2]) && !line.includes("=>")) {
     return {
-      name: methodMatch[1],
+      name: methodMatch[2],
       kind: "method"
     };
   }
@@ -97,6 +97,26 @@ function signatureHasBody(signature, candidate) {
   }
 
   return new RegExp(`^\\s*(?:public|private|protected|static|async|\\s)*${name}(?:\\s*<[^>{}]*>)?\\s*\\([\\s\\S]*?\\)\\s*(?::[^{}]+)?\\{`, "u").test(signature);
+}
+
+function signatureCannotHaveBody(signature, candidate) {
+  if (signatureHasBody(signature, candidate)) {
+    return false;
+  }
+
+  if (candidate.kind === "method" && signature.includes("=>")) {
+    return true;
+  }
+
+  if (candidate.kind === "method" && signature.includes(";")) {
+    return true;
+  }
+
+  if (candidate.kind === "arrow" && signature.includes(";") && !signature.includes("=>")) {
+    return true;
+  }
+
+  return signature.split("\n").length > 20;
 }
 
 function countBraceDelta(line) {
@@ -151,6 +171,8 @@ function checkFunctionSizes(filePath, lines) {
         startLine: pending.startLine,
         depth: pending.depth
       });
+      pending = null;
+    } else if (pending && signatureCannotHaveBody(pending.signature, pending)) {
       pending = null;
     }
 
