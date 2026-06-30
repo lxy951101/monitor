@@ -4,12 +4,8 @@ export default defineConfig({
   build: {
     lib: {
       entry: "src/index.ts",
-      name: "MonitorPluginPerfCache",
       formats: ["es", "cjs"],
       fileName: (format) => (format === "es" ? "index.js" : "index.cjs")
-    },
-    rollupOptions: {
-      external: ["@monitor/core", "@monitor/protocol", "@monitor/transport"]
     }
   }
 });

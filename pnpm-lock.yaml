@@ -111,12 +111,6 @@ importers:
 
   packages/plugin-perf-cache:
     dependencies:
-      '@monitor/core':
-        specifier: workspace:*
-        version: link:../core
-      '@monitor/protocol':
-        specifier: workspace:*
-        version: link:../protocol
       '@monitor/transport':
         specifier: workspace:*
         version: link:../transport
@@ -126,6 +120,9 @@ importers:
       '@monitor/core':
         specifier: workspace:*
         version: link:../core
+      '@monitor/plugin-perf-cache':
+        specifier: workspace:*
+        version: link:../plugin-perf-cache
       '@monitor/protocol':
         specifier: workspace:*
         version: link:../protocol
@@ -138,6 +135,9 @@ importers:
       '@monitor/core':
         specifier: workspace:*
         version: link:../core
+      '@monitor/plugin-perf-cache':
+        specifier: workspace:*
+        version: link:../plugin-perf-cache
       '@monitor/protocol':
         specifier: workspace:*
         version: link:../protocol
@@ -150,6 +150,9 @@ importers:
       '@monitor/core':
         specifier: workspace:*
         version: link:../core
+      '@monitor/plugin-perf-cache':
+        specifier: workspace:*
+        version: link:../plugin-perf-cache
       '@monitor/protocol':
         specifier: workspace:*
         version: link:../protocol

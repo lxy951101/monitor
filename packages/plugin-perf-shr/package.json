@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@monitor/core": "workspace:*",
+    "@monitor/plugin-perf-cache": "workspace:*",
     "@monitor/protocol": "workspace:*",
     "@monitor/transport": "workspace:*"
   },
