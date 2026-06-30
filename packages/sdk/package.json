@@ -1,0 +1,27 @@
+{
+  "name": "@monitor/sdk",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@monitor/core": "workspace:*",
+    "@monitor/plugin-error": "workspace:*",
+    "@monitor/plugin-resource": "workspace:*",
+    "@monitor/plugin-page": "workspace:*",
+    "@monitor/plugin-pv": "workspace:*",
+    "@monitor/plugin-metric": "workspace:*",
+    "@monitor/plugin-logan": "workspace:*",
+    "@monitor/plugin-horn": "workspace:*",
+    "@monitor/plugin-perf-fsp2": "workspace:*",
+    "@monitor/plugin-perf-ird": "workspace:*",
+    "@monitor/plugin-perf-shr": "workspace:*",
+    "@monitor/plugin-perf-cache": "workspace:*"
+  }
+}

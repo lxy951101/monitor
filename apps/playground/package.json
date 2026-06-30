@@ -1,0 +1,15 @@
+{
+  "name": "playground",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "node -e \"console.log('playground shell: no build output yet')\"",
+    "typecheck": "node -e \"console.log('playground shell: no sources yet')\"",
+    "test": "node -e \"console.log('playground shell: no tests yet')\"",
+    "dev": "vite"
+  },
+  "dependencies": {
+    "@monitor/sdk": "workspace:*"
+  }
+}
