@@ -75,9 +75,12 @@ export function encodeResourceTextBatch(data: ResourceBatch): string {
   return JSON.stringify(data);
 }
 
-export function encodeResourceProtobufBatch(data: ResourceBatch): Uint8Array {
-  const rows = data.infos.map((info) => RESOURCE_FIELD_ORDER.map((field) => info[field]));
-  return new TextEncoder().encode(JSON.stringify({ ...data, infos: rows }));
+export function encodeResourceJsonBatchBytes(data: ResourceBatch): Uint8Array {
+  return new TextEncoder().encode(encodeResourceTextBatch(data));
+}
+
+export function encodeResourceProtobufBatch(_data: ResourceBatch): Uint8Array {
+  throw new Error("resource protobuf encoding is not implemented yet");
 }
 
 function formatTags(value: string | Record<string, string> | undefined): string {

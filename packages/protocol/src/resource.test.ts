@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   RESOURCE_FIELD_ORDER,
   createResourceModel,
+  encodeResourceJsonBatchBytes,
   encodeResourceProtobufBatch,
   encodeResourceTextBatch
 } from "./index";
@@ -24,7 +25,7 @@ describe("资源协议", () => {
     expect(text).toContain("\"infos\"");
   });
 
-  it("返回稳定的非空 protobuf 批量编码接口", () => {
+  it("返回可解码的 JSON 批量字节编码", () => {
     const item = createResourceModel({
       resourceUrl: "https://example.com/a.js",
       connectType: "https",
@@ -33,8 +34,23 @@ describe("资源协议", () => {
       pageUrl: "/home",
       realUrl: "https://example.com/home"
     });
-    const data = encodeResourceProtobufBatch({ infos: [item] });
+    const data = encodeResourceJsonBatchBytes({ infos: [item] });
     expect(data).toBeInstanceOf(Uint8Array);
     expect(data.byteLength).toBeGreaterThan(0);
+    expect(JSON.parse(new TextDecoder().decode(data))).toEqual({ infos: [item] });
+  });
+
+  it("未实现真实 protobuf 时显式抛错", () => {
+    const item = createResourceModel({
+      resourceUrl: "https://example.com/a.js",
+      connectType: "https",
+      type: "js",
+      project: "demo",
+      pageUrl: "/home",
+      realUrl: "https://example.com/home"
+    });
+    expect(() => encodeResourceProtobufBatch({ infos: [item] })).toThrow(
+      "resource protobuf encoding is not implemented yet"
+    );
   });
 });

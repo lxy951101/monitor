@@ -14,5 +14,15 @@ export function appendQueryParams(url: string, params: QueryParams): string {
   if (!query) {
     return url;
   }
-  return `${url}${url.includes("?") ? "&" : "?"}${query}`;
+  const [baseUrl, fragment] = splitFragment(url);
+  const separator = baseUrl.includes("?") ? "&" : "?";
+  return `${baseUrl}${separator}${query}${fragment}`;
+}
+
+function splitFragment(url: string): [string, string] {
+  const hashIndex = url.indexOf("#");
+  if (hashIndex === -1) {
+    return [url, ""];
+  }
+  return [url.slice(0, hashIndex), url.slice(hashIndex)];
 }
