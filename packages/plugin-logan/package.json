@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@monitor/config": "workspace:*",
     "@monitor/core": "workspace:*",
     "@monitor/protocol": "workspace:*",
     "@monitor/transport": "workspace:*"

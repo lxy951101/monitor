@@ -72,6 +72,9 @@ importers:
 
   packages/plugin-logan:
     dependencies:
+      '@monitor/config':
+        specifier: workspace:*
+        version: link:../config
       '@monitor/core':
         specifier: workspace:*
         version: link:../core
