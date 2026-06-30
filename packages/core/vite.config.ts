@@ -9,7 +9,7 @@ export default defineConfig({
       fileName: (format) => (format === "es" ? "index.js" : "index.cjs")
     },
     rollupOptions: {
-      external: ["@monitor/config", "@monitor/transport"]
+      external: ["@monitor/config", "@monitor/protocol", "@monitor/transport"]
     }
   }
 });

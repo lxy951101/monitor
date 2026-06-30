@@ -9,6 +9,25 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "noEmitOnError": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@monitor/config": ["packages/config/src/index.ts"],
+      "@monitor/core": ["packages/core/src/index.ts"],
+      "@monitor/plugin-error": ["packages/plugin-error/src/index.ts"],
+      "@monitor/plugin-horn": ["packages/plugin-horn/src/index.ts"],
+      "@monitor/plugin-logan": ["packages/plugin-logan/src/index.ts"],
+      "@monitor/plugin-metric": ["packages/plugin-metric/src/index.ts"],
+      "@monitor/plugin-page": ["packages/plugin-page/src/index.ts"],
+      "@monitor/plugin-perf-cache": ["packages/plugin-perf-cache/src/index.ts"],
+      "@monitor/plugin-perf-fsp2": ["packages/plugin-perf-fsp2/src/index.ts"],
+      "@monitor/plugin-perf-ird": ["packages/plugin-perf-ird/src/index.ts"],
+      "@monitor/plugin-perf-shr": ["packages/plugin-perf-shr/src/index.ts"],
+      "@monitor/plugin-pv": ["packages/plugin-pv/src/index.ts"],
+      "@monitor/plugin-resource": ["packages/plugin-resource/src/index.ts"],
+      "@monitor/protocol": ["packages/protocol/src/index.ts"],
+      "@monitor/sdk": ["packages/sdk/src/index.ts"],
+      "@monitor/transport": ["packages/transport/src/index.ts"]
+    }
   }
 }

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@monitor/config": "workspace:*",
+    "@monitor/protocol": "workspace:*",
     "@monitor/transport": "workspace:*"
   },
   "exports": {
