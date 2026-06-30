@@ -72,7 +72,7 @@ export function createDefaultConfig(): MonitorConfig {
     logan: {
       enable: false,
       version: "1.0.0",
-      cdnPrefixes: LOGAN_CDN_PREFIXES,
+      cdnPrefixes: [...LOGAN_CDN_PREFIXES],
       autoLoad: false
     },
     perf: {

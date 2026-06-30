@@ -82,4 +82,87 @@ describe("配置包", () => {
     expect(second.autoCatch.js).toBe(true);
     expect(second.page.points).not.toContain("custom");
   });
+
+  it("mergeMonitorConfig(base, {}) 返回值修改嵌套对象不会污染 base", () => {
+    const base = createDefaultConfig();
+    const merged = mergeMonitorConfig(base, {});
+
+    merged.autoCatch.js = false;
+    merged.page.points.push("custom");
+
+    expect(base.autoCatch.js).toBe(true);
+    expect(base.page.points).toEqual([]);
+  });
+
+  it("undefined 不覆盖已有值", () => {
+    const config = mergeMonitorConfig(createDefaultConfig(), {
+      project: undefined,
+      page: { delay: undefined }
+    });
+
+    expect(config.project).toBe("");
+    expect(config.page.delay).toBe(0);
+  });
+
+  it("数组覆盖且返回数组不共享 patch 数组引用", () => {
+    const points = ["first"];
+    const config = mergeMonitorConfig(createDefaultConfig(), {
+      page: { points }
+    });
+
+    points.push("second");
+    config.page.points.push("third");
+
+    expect(config.page.points).toEqual(["first", "third"]);
+    expect(points).toEqual(["first", "second"]);
+  });
+
+  it("函数覆盖行为正确", () => {
+    const filter = (value: unknown) => Boolean(value);
+    const config = mergeMonitorConfig(createDefaultConfig(), {
+      filters: { custom: filter }
+    });
+
+    expect(config.filters.custom).toBe(filter);
+    expect(config.filters.custom("ok")).toBe(true);
+  });
+
+  it("RegExp 覆盖行为正确", () => {
+    const resourceReg = /\.mjs$/;
+    const config = mergeMonitorConfig(createDefaultConfig(), {
+      resource: { resourceReg }
+    });
+
+    expect(config.resource.resourceReg).toBe(resourceReg);
+    expect(config.resource.resourceReg.test("entry.mjs")).toBe(true);
+  });
+
+  it("未 patch 的嵌套对象也不共享 base 引用", () => {
+    const base = createDefaultConfig();
+    const config = mergeMonitorConfig(base, { project: "demo" });
+
+    expect(config.autoCatch).not.toBe(base.autoCatch);
+    expect(config.perf.fsp2).not.toBe(base.perf.fsp2);
+
+    config.perf.fsp2.customTags.env = "test";
+
+    expect(base.perf.fsp2.customTags.env).toBeUndefined();
+  });
+
+  it("多次创建默认配置时 logan.cdnPrefixes 不共享可变数组引用", () => {
+    const first = createDefaultConfig();
+    const second = createDefaultConfig();
+
+    (first.logan.cdnPrefixes as unknown as string[]).push("//example.com/logan_");
+
+    expect(second.logan.cdnPrefixes).not.toContain("//example.com/logan_");
+  });
+
+  it("非法 resourceReg 字符串抛出 SyntaxError", () => {
+    expect(() =>
+      mergeMonitorConfig(createDefaultConfig(), {
+        resource: { resourceReg: "[" }
+      })
+    ).toThrow(SyntaxError);
+  });
 });

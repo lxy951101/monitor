@@ -33,7 +33,7 @@ function mergeValue(base: unknown, patch: unknown): unknown {
     return cloneValue(patch);
   }
 
-  const result: PlainObject = { ...base };
+  const result = cloneValue(base) as PlainObject;
 
   for (const [key, value] of Object.entries(patch)) {
     if (value === undefined) {
