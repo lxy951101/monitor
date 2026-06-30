@@ -75,7 +75,7 @@ function findCandidateStart(line) {
 
   const methodMatch = line.match(/^(\s+)(?:public|private|protected|static|async|\s)*([A-Za-z_$][\w$]*)(?:\s*<[^>{}]*>)?\s*\(/u);
 
-  if (methodMatch && !CONTROL_KEYWORDS.has(methodMatch[2]) && !line.includes("=>")) {
+  if (methodMatch && !CONTROL_KEYWORDS.has(methodMatch[2])) {
     return {
       name: methodMatch[2],
       kind: "method"
@@ -104,7 +104,7 @@ function signatureCannotHaveBody(signature, candidate) {
     return false;
   }
 
-  if (candidate.kind === "method" && signature.includes("=>")) {
+  if (candidate.kind === "method" && /^\s*[A-Za-z_$][\w$]*\s*\([\s\S]*=>/u.test(signature)) {
     return true;
   }
 
