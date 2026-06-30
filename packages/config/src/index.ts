@@ -1,1 +1,4 @@
-export const packageName = "@monitor/config";
+export * from "./defaults";
+export * from "./endpoints";
+export * from "./merge";
+export type * from "./types";
