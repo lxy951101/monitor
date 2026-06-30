@@ -15,5 +15,12 @@
     "@monitor/core": "workspace:*",
     "@monitor/protocol": "workspace:*",
     "@monitor/transport": "workspace:*"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
   }
 }

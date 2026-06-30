@@ -23,5 +23,12 @@
     "@monitor/plugin-perf-ird": "workspace:*",
     "@monitor/plugin-perf-shr": "workspace:*",
     "@monitor/plugin-perf-cache": "workspace:*"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
   }
 }
