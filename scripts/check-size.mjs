@@ -5,6 +5,8 @@ import process from "node:process";
 const MAX_FILE_LINES = 600;
 const MAX_FUNCTION_LINES = 120;
 const SOURCE_ROOTS = ["packages", "apps"];
+const IGNORED_DIRECTORIES = new Set(["node_modules", "dist"]);
+const CONTROL_KEYWORDS = new Set(["if", "for", "while", "switch", "catch", "function"]);
 
 const violations = [];
 
@@ -28,6 +30,10 @@ async function collectTypeScriptFiles(root) {
       const entryPath = path.join(root, entry.name);
 
       if (entry.isDirectory()) {
+        if (IGNORED_DIRECTORIES.has(entry.name)) {
+          return [];
+        }
+
         return collectTypeScriptFiles(entryPath);
       }
 
@@ -48,27 +54,49 @@ function stripLineNoise(line) {
     .replace(/(['"`])(?:\\.|(?!\1).)*\1/gu, "\"\"");
 }
 
-function findFunctionStart(line) {
-  const cleanLine = stripLineNoise(line);
-  const functionMatch = cleanLine.match(/\bfunction\s+([A-Za-z_$][\w$]*)?\s*\([^)]*\)\s*(?::[^{]+)?\{/u);
+function findCandidateStart(line) {
+  const functionMatch = line.match(/\bfunction\s+([A-Za-z_$][\w$]*)?(?:\s*<[^>{}]*>)?\s*\(/u);
 
   if (functionMatch) {
-    return functionMatch[1] ?? "<anonymous>";
+    return {
+      name: functionMatch[1] ?? "<anonymous>",
+      kind: "function"
+    };
   }
 
-  const arrowMatch = cleanLine.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*(?::[^=]+)?=>\s*\{/u);
+  const arrowMatch = line.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:<[^>{}]+>\s*)?(?:\(|[A-Za-z_$][\w$]*)/u);
 
   if (arrowMatch) {
-    return arrowMatch[1];
+    return {
+      name: arrowMatch[1],
+      kind: "arrow"
+    };
   }
 
-  const methodMatch = cleanLine.match(/^\s*(?:public|private|protected|static|async|\s)*([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*(?::[^{]+)?\{/u);
+  const methodMatch = line.match(/^\s*(?:public|private|protected|static|async|\s)*([A-Za-z_$][\w$]*)(?:\s*<[^>{}]*>)?\s*\(/u);
 
-  if (methodMatch && !["if", "for", "while", "switch", "catch", "function"].includes(methodMatch[1])) {
-    return methodMatch[1];
+  if (methodMatch && !CONTROL_KEYWORDS.has(methodMatch[1])) {
+    return {
+      name: methodMatch[1],
+      kind: "method"
+    };
   }
 
   return null;
+}
+
+function signatureHasBody(signature, candidate) {
+  const name = candidate.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+
+  if (candidate.kind === "function") {
+    return new RegExp(`\\bfunction\\s+${name === "<anonymous>" ? "" : name}(?:\\s*<[^>{}]*>)?\\s*\\([\\s\\S]*?\\)\\s*(?::[^{}]+)?\\{`, "u").test(signature);
+  }
+
+  if (candidate.kind === "arrow") {
+    return new RegExp(`\\b(?:const|let|var)\\s+${name}\\s*=\\s*(?:async\\s*)?(?:<[^>{}]+>\\s*)?(?:\\([\\s\\S]*?\\)|[A-Za-z_$][\\w$]*)\\s*(?::[^=]+)?=>\\s*\\{`, "u").test(signature);
+  }
+
+  return new RegExp(`^\\s*(?:public|private|protected|static|async|\\s)*${name}(?:\\s*<[^>{}]*>)?\\s*\\([\\s\\S]*?\\)\\s*(?::[^{}]+)?\\{`, "u").test(signature);
 }
 
 function countBraceDelta(line) {
@@ -78,33 +106,55 @@ function countBraceDelta(line) {
   return opens - closes;
 }
 
+function reportCompletedFunctions(filePath, stack, currentLine) {
+  while (stack.length > 0 && stack.at(-1).depth <= 0) {
+    const entry = stack.pop();
+    const lineCount = currentLine - entry.startLine + 1;
+
+    if (lineCount > MAX_FUNCTION_LINES) {
+      violations.push(`${filePath}:${entry.startLine} 函数 ${entry.name} 超过 ${MAX_FUNCTION_LINES} 行，当前 ${lineCount} 行`);
+    }
+  }
+}
+
 function checkFunctionSizes(filePath, lines) {
   const stack = [];
+  let pending = null;
 
   lines.forEach((line, index) => {
-    const functionName = findFunctionStart(line);
-    const braceDelta = countBraceDelta(line);
+    const cleanLine = stripLineNoise(line);
+    const braceDelta = countBraceDelta(cleanLine);
 
     stack.forEach((entry) => {
       entry.depth += braceDelta;
     });
 
-    if (functionName) {
-      stack.push({
-        name: functionName,
-        startLine: index + 1,
-        depth: braceDelta
-      });
-    }
+    if (pending) {
+      pending.signature += `\n${cleanLine}`;
+      pending.depth += braceDelta;
+    } else {
+      const candidate = findCandidateStart(cleanLine);
 
-    while (stack.length > 0 && stack.at(-1).depth <= 0) {
-      const entry = stack.pop();
-      const lineCount = index + 1 - entry.startLine + 1;
-
-      if (lineCount > MAX_FUNCTION_LINES) {
-        violations.push(`${filePath}:${entry.startLine} 函数 ${entry.name} 超过 ${MAX_FUNCTION_LINES} 行，当前 ${lineCount} 行`);
+      if (candidate) {
+        pending = {
+          ...candidate,
+          startLine: index + 1,
+          signature: cleanLine,
+          depth: braceDelta
+        };
       }
     }
+
+    if (pending && signatureHasBody(pending.signature, pending)) {
+      stack.push({
+        name: pending.name,
+        startLine: pending.startLine,
+        depth: pending.depth
+      });
+      pending = null;
+    }
+
+    reportCompletedFunctions(filePath, stack, index + 1);
   });
 }
 
