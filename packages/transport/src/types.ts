@@ -5,6 +5,7 @@ export interface TransportRequest {
   url: string;
   headers?: Record<string, string>;
   body?: BodyInit | null;
+  timeout?: number;
 }
 
 export interface TransportResponse {

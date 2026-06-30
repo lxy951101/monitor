@@ -12,6 +12,19 @@ describe("createBeaconTransport", () => {
     expect(sendBeacon).toHaveBeenCalledWith("/api", "payload");
   });
 
+  it("调用 sendBeacon 时保持 navigator this 绑定", async () => {
+    const navigatorLike = {
+      sendBeacon(this: unknown) {
+        return this === navigatorLike;
+      }
+    };
+    const transport = createBeaconTransport({ navigator: navigatorLike });
+
+    await expect(
+      transport.send({ method: "POST", url: "/api", body: "payload" })
+    ).resolves.toEqual({ ok: true, status: 0 });
+  });
+
   it("navigator.sendBeacon 不存在时失败", async () => {
     const transport = createBeaconTransport({ navigator: {} });
 

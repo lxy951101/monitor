@@ -11,6 +11,9 @@ class FakeXMLHttpRequest {
   responseText = "ok";
   onload: (() => void) | null = null;
   onerror: (() => void) | null = null;
+  ontimeout: (() => void) | null = null;
+  onabort: (() => void) | null = null;
+  timeout = 0;
   headers = new Map<string, string>();
 
   constructor() {
@@ -85,6 +88,72 @@ describe("createXhrTransport", () => {
     const promise = transport.send({ method: "POST", url: "/failed" });
 
     FakeXMLHttpRequest.instances.at(-1)?.onerror?.();
+
+    await expect(promise).rejects.toThrow("XMLHttpRequest failed");
+  });
+
+  it("abort 会返回 rejected Promise", async () => {
+    const transport = createXhrTransport({
+      XMLHttpRequest: FakeXMLHttpRequest as unknown as XhrConstructor
+    });
+    const promise = transport.send({ method: "POST", url: "/aborted" });
+
+    FakeXMLHttpRequest.instances.at(-1)?.onabort?.();
+
+    await expect(promise).rejects.toThrow("XMLHttpRequest aborted");
+  });
+
+  it("timeout 会设置 xhr.timeout 并返回 rejected Promise", async () => {
+    const transport = createXhrTransport({
+      XMLHttpRequest: FakeXMLHttpRequest as unknown as XhrConstructor,
+      timeout: 3000
+    });
+    const promise = transport.send({ method: "POST", url: "/timeout" });
+    const xhr = FakeXMLHttpRequest.instances.at(-1);
+
+    xhr?.ontimeout?.();
+
+    expect(xhr?.timeout).toBe(3000);
+    await expect(promise).rejects.toThrow("XMLHttpRequest timed out");
+  });
+
+  it("request timeout 会覆盖 transport 默认 timeout", async () => {
+    const transport = createXhrTransport({
+      XMLHttpRequest: FakeXMLHttpRequest as unknown as XhrConstructor,
+      timeout: 3000
+    });
+    const promise = transport.send({ method: "GET", url: "/timeout", timeout: 10 });
+    const xhr = FakeXMLHttpRequest.instances.at(-1);
+
+    xhr?.ontimeout?.();
+
+    expect(xhr?.timeout).toBe(10);
+    await expect(promise).rejects.toThrow("XMLHttpRequest timed out");
+  });
+
+  it("timeout 为 0 时不设置 xhr.timeout", async () => {
+    const transport = createXhrTransport({
+      XMLHttpRequest: FakeXMLHttpRequest as unknown as XhrConstructor,
+      timeout: 0
+    });
+    const promise = transport.send({ method: "GET", url: "/ok" });
+    const xhr = FakeXMLHttpRequest.instances.at(-1);
+
+    xhr?.onload?.();
+
+    expect(xhr?.timeout).toBe(0);
+    await expect(promise).resolves.toMatchObject({ ok: true });
+  });
+
+  it("网络错误后即使再次触发 load 也不会重复 settle", async () => {
+    const transport = createXhrTransport({
+      XMLHttpRequest: FakeXMLHttpRequest as unknown as XhrConstructor
+    });
+    const promise = transport.send({ method: "POST", url: "/failed" });
+    const xhr = FakeXMLHttpRequest.instances.at(-1);
+
+    xhr?.onerror?.();
+    xhr?.onload?.();
 
     await expect(promise).rejects.toThrow("XMLHttpRequest failed");
   });

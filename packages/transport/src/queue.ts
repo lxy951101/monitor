@@ -13,6 +13,7 @@ export class ReportQueue<T = unknown> {
   private readonly onFail?: (error: unknown, reports: T[]) => void;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private pendingFlush: Promise<void> | undefined;
+  private needsFlush = false;
 
   constructor(options: ReportQueueOptions<T>) {
     this.maxLength = Math.max(1, options.maxLength);
@@ -25,7 +26,7 @@ export class ReportQueue<T = unknown> {
     this.reports.push(report);
 
     if (this.reports.length >= this.maxLength) {
-      void this.flush();
+      this.triggerFlush();
       return;
     }
 
@@ -38,6 +39,7 @@ export class ReportQueue<T = unknown> {
 
   async flush(): Promise<void> {
     if (this.pendingFlush) {
+      this.needsFlush = true;
       return this.pendingFlush;
     }
 
@@ -51,8 +53,13 @@ export class ReportQueue<T = unknown> {
 
     try {
       await this.pendingFlush;
-    } finally {
       this.pendingFlush = undefined;
+      if (this.reports.length > 0) {
+        await this.flushPendingReports();
+      }
+    } catch (error) {
+      this.pendingFlush = undefined;
+      throw error;
     }
   }
 
@@ -73,8 +80,24 @@ export class ReportQueue<T = unknown> {
 
     this.timer = setTimeout(() => {
       this.timer = undefined;
-      void this.flush();
+      this.triggerFlush();
     }, this.delay);
+  }
+
+  private triggerFlush(): void {
+    void this.flush().catch(() => {
+      // sendBatch 已回滚数据并触发 onFail；自动触发路径只负责避免悬空 rejection。
+    });
+  }
+
+  private async flushPendingReports(): Promise<void> {
+    if (this.needsFlush || this.reports.length >= this.maxLength) {
+      this.needsFlush = false;
+      await this.flush();
+      return;
+    }
+
+    this.scheduleFlush();
   }
 
   private clearTimer(): void {

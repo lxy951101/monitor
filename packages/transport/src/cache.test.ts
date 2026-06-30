@@ -51,4 +51,14 @@ describe("LocalStorageCache", () => {
     expect(() => cache.clear()).not.toThrow();
     expect(onError).toHaveBeenCalledTimes(3);
   });
+
+  it("JSON parse 失败不抛出到业务并返回空缓存", () => {
+    const onError = vi.fn();
+    const storage = new MemoryStorage();
+    storage.setItem("reports", "{");
+    const cache = new LocalStorageCache({ key: "reports", storage, onError });
+
+    expect(cache.get()).toEqual([]);
+    expect(onError).toHaveBeenCalledOnce();
+  });
 });

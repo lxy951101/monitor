@@ -12,13 +12,11 @@ export function createBeaconTransport(options: BeaconTransportOptions = {}): Tra
   return {
     async send(request) {
       const navigatorLike = options.navigator ?? getGlobalNavigator();
-      const sendBeacon = navigatorLike?.sendBeacon;
-
-      if (!sendBeacon) {
+      if (!navigatorLike?.sendBeacon) {
         throw new TransportError("sendBeacon is not available");
       }
 
-      if (!sendBeacon(request.url, request.body)) {
+      if (!navigatorLike.sendBeacon(request.url, request.body)) {
         throw new TransportError("sendBeacon returned false");
       }
 
