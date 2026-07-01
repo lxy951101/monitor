@@ -4,9 +4,9 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "node -e \"console.log('mock-server shell: no build output yet')\"",
-    "typecheck": "node -e \"console.log('mock-server shell: no sources yet')\"",
-    "test": "node -e \"console.log('mock-server shell: no tests yet')\"",
-    "dev": "node -e \"console.log('mock-server shell: dev entry pending')\""
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "dev": "node --experimental-strip-types src/index.ts"
   }
 }
