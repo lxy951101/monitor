@@ -1,52 +1,60 @@
-import type { Transport, TransportRequest, TransportResponse } from "@monitor/transport";
-import { CfgManager, type MonitorCoreConfigPatch } from "./config-manager";
-import { EventBus, type EventMap } from "./event-bus";
+import type { Transport } from "@monitor/transport";
+import { CfgManager, type CoreConfig, type CoreConfigPatch } from "./config-manager";
+import { EventBus } from "./event-bus";
 import { Logger } from "./logger";
 import type { MonitorContext, Plugin } from "./plugin";
 
-export interface MonitorCoreOptions<Events extends EventMap = Record<string, unknown[]>> {
-  cfgManager?: CfgManager;
-  eventBus?: EventBus<Events>;
+export interface MonitorCoreOptions {
+  eventBus?: EventBus;
   logger?: Logger;
   transport?: Transport;
 }
 
-export class MonitorCore<Events extends EventMap = Record<string, unknown[]>> {
+const noopTransport: Transport = {
+  async send() {
+    return { ok: true, status: 204 };
+  }
+};
+
+export class MonitorCore {
   readonly cfgManager: CfgManager;
-  readonly eventBus: EventBus<Events>;
+  readonly eventBus: EventBus;
   readonly logger: Logger;
   readonly transport: Transport;
-
-  private readonly plugins: Array<Plugin<Events>> = [];
-  private readonly startedPlugins: Array<Plugin<Events>> = [];
+  private readonly plugins: Plugin[] = [];
   private started = false;
 
-  constructor(config: MonitorCoreConfigPatch = {}, options: MonitorCoreOptions<Events> = {}) {
-    this.cfgManager = options.cfgManager ?? new CfgManager(config);
-    this.eventBus = options.eventBus ?? new EventBus<Events>();
-    this.logger = options.logger ?? new Logger(Boolean(this.cfgManager.getConfig("devMode")));
-    this.transport = options.transport ?? new NoopTransport();
+  constructor(config: CoreConfigPatch = {}, options: MonitorCoreOptions = {}) {
+    this.cfgManager = new CfgManager(config);
+    this.eventBus = options.eventBus ?? new EventBus();
+    this.logger = options.logger ?? new Logger(this.cfgManager.getConfig("devMode"));
+    this.transport = options.transport ?? noopTransport;
   }
 
-  use(plugin: Plugin<Events>): this {
+  use(plugin: Plugin): this {
     this.plugins.push(plugin);
 
     if (this.started) {
-      this.startPlugin(plugin);
+      plugin.start(this.createContext());
     }
 
     return this;
   }
 
-  start(): this {
+  start(config?: CoreConfigPatch): this {
+    if (config) {
+      this.config(config);
+    }
+
     if (this.started) {
       return this;
     }
 
     this.started = true;
+    const context = this.createContext();
 
     for (const plugin of this.plugins) {
-      this.startPlugin(plugin);
+      plugin.start(context);
     }
 
     return this;
@@ -57,71 +65,49 @@ export class MonitorCore<Events extends EventMap = Record<string, unknown[]>> {
       return this;
     }
 
-    for (const plugin of [...this.startedPlugins].reverse()) {
-      this.stopPlugin(plugin);
+    const context = this.createContext();
+
+    for (const plugin of [...this.plugins].reverse()) {
+      plugin.stop?.(context);
     }
 
-    this.startedPlugins.length = 0;
+    this.eventBus.clear();
     this.started = false;
     return this;
   }
 
-  getConfig<Key extends keyof CfgManager["config"]>(key: Key): CfgManager["config"][Key] {
+  config(config: CoreConfigPatch): this {
+    this.cfgManager.updateConfig(config);
+    this.logger.setDevMode(this.cfgManager.getConfig("devMode"));
+    return this;
+  }
+
+  setConfig<Key extends keyof CoreConfig>(key: Key, value: CoreConfig[Key]): this {
+    this.cfgManager.setConfig(key, value);
+    this.logger.setDevMode(this.cfgManager.getConfig("devMode"));
+    return this;
+  }
+
+  getConfig(): CoreConfig;
+  getConfig<Key extends keyof CoreConfig>(key: Key): CoreConfig[Key];
+  getConfig<Key extends keyof CoreConfig>(key?: Key): CoreConfig | CoreConfig[Key] {
+    if (key === undefined) {
+      return this.cfgManager.getConfig();
+    }
+
     return this.cfgManager.getConfig(key);
   }
 
-  setConfig<Key extends keyof CfgManager["config"]>(
-    key: Key,
-    value: CfgManager["config"][Key]
-  ): this {
-    this.cfgManager.setConfig(key, value);
-
-    if (key === "devMode") {
-      this.logger.setDevMode(Boolean(value));
-    }
-
-    return this;
+  isStarted(): boolean {
+    return this.started;
   }
 
-  updateConfig(config: MonitorCoreConfigPatch): this {
-    this.cfgManager.updateConfig(config);
-    this.logger.setDevMode(Boolean(this.cfgManager.getConfig("devMode")));
-    return this;
-  }
-
-  private createContext(): MonitorContext<Events> {
+  private createContext(): MonitorContext {
     return {
       cfgManager: this.cfgManager,
       eventBus: this.eventBus,
       transport: this.transport,
       logger: this.logger
     };
-  }
-
-  private startPlugin(plugin: Plugin<Events>): void {
-    if (this.startedPlugins.includes(plugin)) {
-      return;
-    }
-
-    try {
-      plugin.start(this.createContext());
-      this.startedPlugins.push(plugin);
-    } catch (error) {
-      this.logger.error(`[MonitorCore] plugin ${plugin.name} start failed`, error);
-    }
-  }
-
-  private stopPlugin(plugin: Plugin<Events>): void {
-    try {
-      plugin.stop?.(this.createContext());
-    } catch (error) {
-      this.logger.error(`[MonitorCore] plugin ${plugin.name} stop failed`, error);
-    }
-  }
-}
-
-class NoopTransport implements Transport {
-  send(_request: TransportRequest): Promise<TransportResponse> {
-    return Promise.resolve({ ok: true, status: 204 });
   }
 }

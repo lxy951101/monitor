@@ -1,17 +1,17 @@
 import type { Transport } from "@monitor/transport";
 import type { CfgManager } from "./config-manager";
-import type { EventBus, EventMap } from "./event-bus";
+import type { EventBus } from "./event-bus";
 import type { Logger } from "./logger";
 
-export interface MonitorContext<Events extends EventMap = Record<string, unknown[]>> {
+export interface MonitorContext {
   cfgManager: CfgManager;
-  eventBus: EventBus<Events>;
+  eventBus: EventBus;
   transport: Transport;
   logger: Logger;
 }
 
-export interface Plugin<Events extends EventMap = Record<string, unknown[]>> {
+export interface Plugin {
   name: string;
-  start(context: MonitorContext<Events>): void;
-  stop?(context?: MonitorContext<Events>): void;
+  start: (context: MonitorContext) => void;
+  stop?: (context?: MonitorContext) => void;
 }

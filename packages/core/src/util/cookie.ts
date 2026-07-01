@@ -1,101 +1,79 @@
-export interface CookieOptions {
-  path?: string;
-  domain?: string;
-  expires?: Date;
-  maxAge?: number;
-  sameSite?: "Strict" | "Lax" | "None";
-  secure?: boolean;
-}
+export function getCookie(name: string, cookie?: string): string | undefined {
+  const source = cookie ?? getRuntimeCookie();
 
-export interface CookieDocument {
-  cookie: string;
-}
+  for (const part of source.split(";")) {
+    const [rawKey, ...rawValue] = part.trim().split("=");
 
-export function getCookie(name: string, cookieString?: string): string | undefined {
-  const source = cookieString ?? getDocumentCookie();
-
-  if (!source) {
-    return undefined;
-  }
-
-  const encodedName = encodeURIComponent(name);
-  const cookies = source.split(";").map((cookie) => cookie.trim());
-
-  for (const cookie of cookies) {
-    const separatorIndex = cookie.indexOf("=");
-    const key = separatorIndex === -1 ? cookie : cookie.slice(0, separatorIndex);
-
-    if (key === encodedName || key === name) {
-      const rawValue = separatorIndex === -1 ? "" : cookie.slice(separatorIndex + 1);
-      return safeDecode(rawValue);
+    if (rawKey === name) {
+      return decodeURIComponent(rawValue.join("="));
     }
   }
 
   return undefined;
 }
 
-export function setCookie(
-  name: string,
-  value: string,
-  options: CookieOptions = {},
-  doc?: CookieDocument
-): string {
-  const cookie = buildCookie(name, value, options);
-  const target = doc ?? getDocumentLike();
-
-  if (target) {
-    target.cookie = cookie;
-  }
-
-  return cookie;
+export interface SetCookieOptions {
+  document?: Pick<Document, "cookie">;
+  path?: string;
+  domain?: string;
+  maxAge?: number;
+  expires?: Date;
+  sameSite?: "Strict" | "Lax" | "None";
+  secure?: boolean;
 }
 
-function buildCookie(name: string, value: string, options: CookieOptions): string {
-  const parts = [`${encodeURIComponent(name)}=${encodeURIComponent(value)}`];
+export function setCookie(name: string, value: string, options: SetCookieOptions = {}): void {
+  const target = options.document ?? getRuntimeDocument();
 
-  if (options.maxAge !== undefined) {
-    parts.push(`Max-Age=${Math.floor(options.maxAge)}`);
+  if (!target) {
+    return;
   }
 
-  if (options.expires) {
-    parts.push(`Expires=${options.expires.toUTCString()}`);
-  }
-
-  if (options.domain) {
-    parts.push(`Domain=${options.domain}`);
-  }
-
-  if (options.path) {
-    parts.push(`Path=${options.path}`);
-  }
-
-  if (options.sameSite) {
-    parts.push(`SameSite=${options.sameSite}`);
-  }
-
-  if (options.secure) {
-    parts.push("Secure");
-  }
-
-  return parts.join("; ");
+  target.cookie = buildCookie(name, value, options);
 }
 
-function safeDecode(value: string): string {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
+function getRuntimeCookie(): string {
+  if (typeof document === "undefined") {
+    return "";
   }
+
+  return document.cookie;
 }
 
-function getDocumentCookie(): string | undefined {
-  return getDocumentLike()?.cookie;
-}
-
-function getDocumentLike(): CookieDocument | undefined {
+function getRuntimeDocument(): Pick<Document, "cookie"> | undefined {
   if (typeof document === "undefined") {
     return undefined;
   }
 
   return document;
+}
+
+function buildCookie(name: string, value: string, options: SetCookieOptions): string {
+  const parts = [`${encodeURIComponent(name)}=${encodeURIComponent(value)}`];
+
+  if (options.path) {
+    parts.push(`path=${options.path}`);
+  }
+
+  if (options.domain) {
+    parts.push(`domain=${options.domain}`);
+  }
+
+  if (options.maxAge !== undefined) {
+    parts.push(`max-age=${options.maxAge}`);
+  }
+
+  if (options.expires) {
+    parts.push(`expires=${options.expires.toUTCString()}`);
+  }
+
+  if (options.sameSite) {
+    parts.push(`samesite=${options.sameSite}`);
+  }
+
+  if (options.secure) {
+    parts.push("secure");
+  }
+
+  return parts.join("; ");
 }

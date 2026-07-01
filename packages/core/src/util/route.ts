@@ -1,109 +1,107 @@
-export interface RouteLocationLike {
-  href?: string;
-  hash?: string;
-}
-
-export interface HistoryLike {
-  pushState: (...args: unknown[]) => unknown;
-  replaceState: (...args: unknown[]) => unknown;
-}
-
 export interface RouteWatcherEnv {
-  location?: RouteLocationLike;
-  history?: HistoryLike;
-  addEventListener?: (name: string, listener: EventListener) => void;
-  removeEventListener?: (name: string, listener: EventListener) => void;
+  location: { href: string; hash?: string };
+  history: {
+    pushState: (data: unknown, unused: string, url?: string | URL | null) => void;
+    replaceState: (data: unknown, unused: string, url?: string | URL | null) => void;
+  };
+  addEventListener: (name: string, listener: EventListener) => void;
+  removeEventListener: (name: string, listener: EventListener) => void;
 }
 
-export interface RouteChange {
-  type: "pushState" | "replaceState" | "popstate" | "hashchange";
-  from: string;
-  to: string;
-  event?: Event;
-}
-
-export type RouteChangeHandler = (change: RouteChange) => void;
 export type StopWatcher = () => void;
+export type RouteChangeHandler = (url: string) => void;
+
+const historyWatchers = new WeakMap<RouteWatcherEnv["history"], HistoryWatcherState>();
+
+interface HistoryWatcherState {
+  subscriptions: Set<HistorySubscription>;
+  originalPushState: RouteWatcherEnv["history"]["pushState"];
+  originalReplaceState: RouteWatcherEnv["history"]["replaceState"];
+  onPopState: EventListener;
+}
+
+interface HistorySubscription {
+  handler: RouteChangeHandler;
+}
 
 export function createHistoryRouteWatcher(
-  env: RouteWatcherEnv | undefined,
-  handler: RouteChangeHandler
+  env: RouteWatcherEnv,
+  onChange: RouteChangeHandler
 ): StopWatcher {
-  const target = env ?? getWindowLike();
-  const history = target?.history;
-
-  if (!target || !history) {
-    return noop;
-  }
-
-  const originalPushState = history.pushState;
-  const originalReplaceState = history.replaceState;
-  let lastUrl = getCurrentUrl(target);
-
-  const notify = (type: RouteChange["type"], event?: Event) => {
-    const from = lastUrl;
-    const to = getCurrentUrl(target);
-    lastUrl = to;
-    handler({ type, from, to, event });
-  };
-
-  history.pushState = function patchedPushState(...args: unknown[]) {
-    const result = originalPushState.apply(this, args);
-    notify("pushState");
-    return result;
-  };
-
-  history.replaceState = function patchedReplaceState(...args: unknown[]) {
-    const result = originalReplaceState.apply(this, args);
-    notify("replaceState");
-    return result;
-  };
-
-  const onPopState: EventListener = (event) => notify("popstate", event);
-  target.addEventListener?.("popstate", onPopState);
+  const state = ensureHistoryWatcher(env);
+  const subscription = { handler: onChange };
+  let stopped = false;
+  state.subscriptions.add(subscription);
 
   return () => {
-    history.pushState = originalPushState;
-    history.replaceState = originalReplaceState;
-    target.removeEventListener?.("popstate", onPopState);
+    if (stopped) {
+      return;
+    }
+
+    stopped = true;
+    state.subscriptions.delete(subscription);
+
+    if (state.subscriptions.size === 0 && historyWatchers.get(env.history) === state) {
+      restoreHistoryWatcher(env, state);
+    }
   };
 }
 
 export function createHashRouteWatcher(
-  env: RouteWatcherEnv | undefined,
-  handler: RouteChangeHandler
+  env: Pick<RouteWatcherEnv, "location" | "addEventListener" | "removeEventListener">,
+  onChange: RouteChangeHandler
 ): StopWatcher {
-  const target = env ?? getWindowLike();
+  const onHashChange = () => onChange(env.location.href);
 
-  if (!target) {
-    return noop;
+  env.addEventListener("hashchange", onHashChange);
+
+  return () => env.removeEventListener("hashchange", onHashChange);
+}
+
+function ensureHistoryWatcher(env: RouteWatcherEnv): HistoryWatcherState {
+  const existing = historyWatchers.get(env.history);
+
+  if (existing) {
+    return existing;
   }
 
-  let lastUrl = getCurrentUrl(target);
-  const onHashChange: EventListener = (event) => {
-    const from = lastUrl;
-    const to = getCurrentUrl(target);
-    lastUrl = to;
-    handler({ type: "hashchange", from, to, event });
+  const state = createHistoryWatcherState(env);
+  historyWatchers.set(env.history, state);
+  env.addEventListener("popstate", state.onPopState);
+
+  return state;
+}
+
+function createHistoryWatcherState(env: RouteWatcherEnv): HistoryWatcherState {
+  const originalPushState = env.history.pushState.bind(env.history);
+  const originalReplaceState = env.history.replaceState.bind(env.history);
+  const subscriptions = new Set<HistorySubscription>();
+  const notify = () => {
+    for (const subscription of [...subscriptions]) {
+      subscription.handler(env.location.href);
+    }
   };
 
-  target.addEventListener?.("hashchange", onHashChange);
+  env.history.pushState = ((...args: Parameters<RouteWatcherEnv["history"]["pushState"]>) => {
+    originalPushState(...args);
+    notify();
+  }) as RouteWatcherEnv["history"]["pushState"];
+  env.history.replaceState = ((...args: Parameters<RouteWatcherEnv["history"]["replaceState"]>) => {
+    originalReplaceState(...args);
+    notify();
+  }) as RouteWatcherEnv["history"]["replaceState"];
 
-  return () => {
-    target.removeEventListener?.("hashchange", onHashChange);
+  return {
+    subscriptions,
+    originalPushState,
+    originalReplaceState,
+    onPopState: notify
   };
 }
 
-function getCurrentUrl(env: RouteWatcherEnv): string {
-  return env.location?.href ?? "";
+function restoreHistoryWatcher(env: RouteWatcherEnv, state: HistoryWatcherState): void {
+  env.history.pushState = state.originalPushState;
+  env.history.replaceState = state.originalReplaceState;
+  env.removeEventListener("popstate", state.onPopState);
+  historyWatchers.delete(env.history);
 }
-
-function getWindowLike(): RouteWatcherEnv | undefined {
-  if (typeof window === "undefined") {
-    return undefined;
-  }
-
-  return window;
-}
-
-function noop(): void {}

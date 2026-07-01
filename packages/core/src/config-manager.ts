@@ -3,285 +3,302 @@ import {
   createDefaultConfig,
   getReportBaseUrl,
   mergeMonitorConfig,
-  type DeepPartial,
+  type FilterFn,
   type MonitorConfig,
   type MonitorConfigPatch
 } from "@monitor/config";
 import { appendQueryParams, type QueryParams } from "@monitor/protocol";
 
-export interface MonitorCoreExtraConfig {
-  webVersion?: string;
-}
+type ApiKey = keyof typeof API_PATHS;
+type RandomFn = () => number;
+type SampleKey = "page" | "resource" | "ajax" | "error" | "metric";
+export type SamplePatch = Partial<Record<SampleKey, number>>;
 
-export type MonitorCoreConfig = MonitorConfig & MonitorCoreExtraConfig;
-export type MonitorCoreConfigPatch = MonitorConfigPatch & DeepPartial<MonitorCoreExtraConfig>;
-export type ApiPathKey = keyof typeof API_PATHS;
-export type RandomSource = () => number;
-export type ExtensionValue = string | number | boolean;
-export type SamplingPatch = Record<string, number | undefined>;
+export type CoreConfig = MonitorConfig & {
+  endpoints: Partial<Record<ApiKey, string>>;
+  extensions: Record<string, string>;
+  protocol?: string;
+  webVersion?: string;
+};
+
+export type CoreConfigPatch = MonitorConfigPatch & {
+  endpoints?: Partial<Record<ApiKey, string>>;
+  extensions?: Record<string, string | undefined>;
+  protocol?: string;
+  webVersion?: string;
+};
 
 export interface CfgManagerOptions {
-  random?: RandomSource;
+  random?: RandomFn;
 }
 
 export class CfgManager {
-  config: MonitorCoreConfig;
+  private config: CoreConfig;
+  private random: RandomFn;
+  private readonly firstProjectRequest = new Set<string>();
+  private readonly sampleMap = new Map<string, SamplePatch>();
+  private baseSampling: SamplePatch;
 
-  private random: RandomSource;
-  private readonly startedProjects = new Set<string>();
-  private readonly extensions: Record<string, ExtensionValue> = {};
-  private readonly samplingMap = new Map<string, Record<string, number>>();
-  private baseSampling: Record<string, number>;
-
-  constructor(config: MonitorCoreConfigPatch = {}, options: CfgManagerOptions = {}) {
-    this.config = normalizeReportBaseUrl(createCoreConfig(config), config);
+  constructor(patch: CoreConfigPatch = {}, options: CfgManagerOptions = {}) {
     this.random = options.random ?? Math.random;
+    this.config = this.createConfig(patch);
     this.baseSampling = readSampling(this.config);
   }
 
-  getConfig<Key extends keyof MonitorCoreConfig>(key: Key): MonitorCoreConfig[Key] {
-    return this.config[key];
+  getConfig(): CoreConfig;
+  getConfig<Key extends keyof CoreConfig>(key: Key): CoreConfig[Key];
+  getConfig<Key extends keyof CoreConfig>(key?: Key): CoreConfig | CoreConfig[Key] {
+    return cloneValue(key === undefined ? this.config : this.config[key]) as CoreConfig | CoreConfig[Key];
   }
 
-  getAllConfig(): MonitorCoreConfig {
-    return cloneConfig(this.config);
-  }
-
-  setConfig<Key extends keyof MonitorCoreConfig>(key: Key, value: MonitorCoreConfig[Key]): void {
+  updateConfig(patch: CoreConfigPatch): CoreConfig {
     const previousProject = this.config.project;
-    this.config = normalizeReportBaseUrl({ ...this.config, [key]: value }, { [key]: value });
-    this.updateBaseSamplingFromValue(String(key), value);
-    this.syncSamplingWhenProjectChanged(previousProject);
+    this.config = this.createConfig(patch, this.config);
+    this.baseSampling = { ...this.baseSampling, ...readSamplingPatch(patch) };
+    this.syncProjectSampling(previousProject);
+    return cloneValue(this.config);
   }
 
-  updateConfig(patch: MonitorCoreConfigPatch): void {
-    const previousProject = this.config.project;
-    this.config = normalizeReportBaseUrl(mergeCoreConfig(this.config, patch), patch);
-    this.updateBaseSamplingFromPatch(patch);
-    this.syncSamplingWhenProjectChanged(previousProject);
+  setConfig<Key extends keyof CoreConfig>(key: Key, value: CoreConfig[Key]): CoreConfig {
+    return this.updateConfig({ [key]: value } as CoreConfigPatch);
   }
 
-  getApiPath(key: ApiPathKey | string, extraQuery: QueryParams = {}): string {
-    const path = API_PATHS[key as ApiPathKey] ?? key;
-    const url = joinUrl(this.config.reportBaseUrl, path);
-    const project = this.config.project;
-    const query: QueryParams = {
-      project,
-      webVersion: this.config.webVersion,
-      ...this.consumeStartupQuery(project),
-      ...extraQuery
-    };
+  getApiPath(key: ApiKey, extraQuery: QueryParams = {}): string {
+    const path = this.config.endpoints[key] ?? API_PATHS[key];
+    const query = this.createApiQuery(extraQuery);
 
-    return appendQueryParams(url, query);
+    return appendQueryParams(`${this.config.reportBaseUrl}${path}`, query);
   }
 
-  setRandom(random: RandomSource): void {
-    this.random = random;
-  }
-
-  isSampled(key: string): boolean {
-    const sample = this.getSamplingRate(key);
-
-    if (sample <= 0) {
-      return false;
-    }
+  isSampled(key: SampleKey, project = this.config.project): boolean {
+    const sample = this.getSampleValue(key, project);
 
     if (sample >= 1) {
       return true;
     }
 
+    if (sample <= 0) {
+      return false;
+    }
+
     return this.random() < sample;
   }
 
-  applyRemoteSampling(sampling: SamplingPatch): void {
-    const project = this.config.project;
-    const projectSampling = this.getProjectSampling(project);
-
-    for (const [key, sample] of Object.entries(sampling)) {
-      if (sample === undefined) {
-        continue;
-      }
-
-      const normalizedSample = normalizeSample(sample);
-      projectSampling[key] = normalizedSample;
-      this.writeSamplingRate(key, normalizedSample);
-    }
+  setRandom(random: RandomFn): void {
+    this.random = random;
   }
 
-  getSampleMap(project = this.config.project): Record<string, number> {
-    return { ...(this.samplingMap.get(project) ?? {}) };
-  }
-
-  setExtension(key: string, value: ExtensionValue | undefined): void {
+  setExtension(key: string, value: string | undefined): void {
     if (value === undefined) {
-      delete this.extensions[key];
+      delete this.config.extensions[key];
       return;
     }
 
-    this.extensions[key] = value;
+    this.config.extensions[key] = value;
   }
 
-  getExtensions(): Record<string, ExtensionValue> {
-    return { ...this.extensions };
+  getExtensions(): Record<string, string> {
+    return { ...this.config.extensions };
   }
 
-  clearExtensions(): void {
-    for (const key of Object.keys(this.extensions)) {
-      delete this.extensions[key];
-    }
-  }
-
-  addFilter(name: string, filter: MonitorConfig["filters"][string]): void {
-    this.config = {
-      ...this.config,
-      filters: {
-        ...this.config.filters,
-        [name]: filter
-      }
-    };
+  addFilter(name: string, filter: FilterFn): void {
+    this.config.filters = { ...this.config.filters, [name]: filter };
   }
 
   removeFilter(name: string): void {
     const { [name]: _removed, ...filters } = this.config.filters;
-    this.config = { ...this.config, filters };
+    this.config.filters = filters;
   }
 
   runFilter(name: string, value: unknown): boolean {
-    const filter = this.config.filters[name];
-
-    if (!filter) {
-      return true;
-    }
-
     try {
-      return Boolean(filter(value));
+      return this.config.filters[name]?.(value) ?? true;
     } catch {
       return true;
     }
   }
 
-  private consumeStartupQuery(project: string): QueryParams {
-    if (!project || this.startedProjects.has(project)) {
-      return {};
-    }
+  applyRemoteSampling(sampling: SamplePatch): void {
+    const projectSampling = {
+      ...this.sampleMap.get(this.config.project),
+      ...normalizeSampling(sampling)
+    };
 
-    this.startedProjects.add(project);
-    return { st: 1 };
+    this.sampleMap.set(this.config.project, projectSampling);
+    this.applySampling(projectSampling);
   }
 
-  private getSamplingRate(key: string): number {
-    const projectSampling = this.samplingMap.get(this.config.project);
-
-    if (projectSampling?.[key] !== undefined) {
-      return projectSampling[key];
-    }
-
-    return readSamplingRate(this.config, key) ?? 1;
+  getSampleMap(project = this.config.project): SamplePatch {
+    return { ...this.sampleMap.get(project) };
   }
 
-  private writeSamplingRate(key: string, sample: number): void {
-    const target = this.config[key as keyof MonitorCoreConfig];
+  private createConfig(patch: CoreConfigPatch, base?: CoreConfig): CoreConfig {
+    const defaultConfig = base ?? this.createDefaultCoreConfig();
+    const normalized = this.normalizePatch(patch, defaultConfig);
+    const merged = mergeMonitorConfig(defaultConfig, normalized) as CoreConfig;
 
-    if (hasSample(target)) {
-      target.sample = sample;
-    }
+    merged.endpoints = { ...defaultConfig.endpoints, ...patch.endpoints };
+    merged.extensions = applyExtensionPatch(defaultConfig.extensions, patch.extensions);
+    merged.protocol = patch.protocol ?? defaultConfig.protocol;
+    merged.webVersion = patch.webVersion ?? defaultConfig.webVersion;
+
+    return merged;
   }
 
-  private getProjectSampling(project: string): Record<string, number> {
-    let projectSampling = this.samplingMap.get(project);
-
-    if (!projectSampling) {
-      projectSampling = {};
-      this.samplingMap.set(project, projectSampling);
-    }
-
-    return projectSampling;
+  private createDefaultCoreConfig(): CoreConfig {
+    return {
+      ...createDefaultConfig(),
+      endpoints: {},
+      extensions: {},
+      protocol: "https:"
+    };
   }
 
-  private syncSamplingWhenProjectChanged(previousProject: string): void {
+  private normalizePatch(patch: CoreConfigPatch, base: CoreConfig): MonitorConfigPatch {
+    const { endpoints: _endpoints, extensions: _extensions, protocol, webVersion: _webVersion, ...config } = patch;
+    const next = { ...config };
+
+    if (patch.devMode !== undefined && patch.reportBaseUrl === undefined) {
+      next.reportBaseUrl = getReportBaseUrl(patch.devMode);
+    }
+
+    if (protocol && patch.reportBaseUrl === undefined) {
+      next.reportBaseUrl = base.reportBaseUrl.replace(/^https?:/, protocol);
+    }
+
+    return next;
+  }
+
+  private createApiQuery(extraQuery: QueryParams): QueryParams {
+    const query: QueryParams = {
+      project: this.config.project,
+      ...this.config.extensions,
+      ...extraQuery
+    };
+
+    if (this.config.webVersion) {
+      query.webVersion = this.config.webVersion;
+    }
+
+    if (this.config.project && !this.firstProjectRequest.has(this.config.project)) {
+      this.firstProjectRequest.add(this.config.project);
+      query.st = 1;
+    }
+
+    return query;
+  }
+
+  private getSampleValue(key: SampleKey, project: string): number {
+    return this.sampleMap.get(project)?.[key] ?? this.config[key]?.sample ?? 1;
+  }
+
+  private syncProjectSampling(previousProject: string): void {
     if (previousProject === this.config.project) {
       return;
     }
 
-    const projectSampling = this.samplingMap.get(this.config.project);
-
-    for (const [key, sample] of Object.entries(this.baseSampling)) {
-      this.writeSamplingRate(key, projectSampling?.[key] ?? sample);
-    }
+    this.applySampling({
+      ...this.baseSampling,
+      ...this.sampleMap.get(this.config.project)
+    });
   }
 
-  private updateBaseSamplingFromPatch(patch: MonitorCoreConfigPatch): void {
-    for (const [key, value] of Object.entries(patch)) {
-      this.updateBaseSamplingFromValue(key, value);
-    }
-  }
-
-  private updateBaseSamplingFromValue(key: string, value: unknown): void {
-    if (hasSample(value)) {
-      this.baseSampling[key] = normalizeSample(value.sample);
+  private applySampling(sampling: SamplePatch): void {
+    for (const [key, sample] of Object.entries(sampling) as Array<[SampleKey, number]>) {
+      if (sample !== undefined) {
+        this.config[key].sample = sample;
+      }
     }
   }
 }
 
-function createCoreConfig(patch: MonitorCoreConfigPatch): MonitorCoreConfig {
+function compactExtensions(
+  extensions: Record<string, string | undefined> | undefined
+): Record<string, string> {
+  const compacted: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(extensions ?? {})) {
+    if (value !== undefined) {
+      compacted[key] = value;
+    }
+  }
+
+  return compacted;
+}
+
+function applyExtensionPatch(
+  base: Record<string, string>,
+  patch: Record<string, string | undefined> | undefined
+): Record<string, string> {
+  const next = { ...base };
+
+  for (const [key, value] of Object.entries(patch ?? {})) {
+    if (value === undefined) {
+      delete next[key];
+    } else {
+      next[key] = value;
+    }
+  }
+
+  return next;
+}
+
+function cloneValue<Value>(value: Value): Value {
+  if (Array.isArray(value)) {
+    return value.map((item) => cloneValue(item)) as Value;
+  }
+
+  if (isPlainObject(value)) {
+    const cloned: Record<string, unknown> = {};
+
+    for (const [key, child] of Object.entries(value)) {
+      cloned[key] = cloneValue(child);
+    }
+
+    return cloned as Value;
+  }
+
+  return value;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+
+  return Object.getPrototypeOf(value) === Object.prototype;
+}
+
+function readSampling(config: CoreConfig): SamplePatch {
   return {
-    ...mergeMonitorConfig(createDefaultConfig(), patch),
-    webVersion: patch.webVersion
+    page: config.page.sample,
+    resource: config.resource.sample,
+    ajax: config.ajax.sample,
+    error: config.error.sample,
+    metric: config.metric.sample
   };
 }
 
-function mergeCoreConfig(
-  base: MonitorCoreConfig,
-  patch: MonitorCoreConfigPatch
-): MonitorCoreConfig {
-  const merged = mergeMonitorConfig(base, patch);
-  return {
-    ...merged,
-    webVersion: patch.webVersion ?? base.webVersion
-  };
+function readSamplingPatch(patch: CoreConfigPatch): SamplePatch {
+  return normalizeSampling({
+    page: patch.page?.sample,
+    resource: patch.resource?.sample,
+    ajax: patch.ajax?.sample,
+    error: patch.error?.sample,
+    metric: patch.metric?.sample
+  });
 }
 
-function normalizeReportBaseUrl(
-  config: MonitorCoreConfig,
-  patch: MonitorCoreConfigPatch
-): MonitorCoreConfig {
-  if (patch.devMode === undefined || patch.reportBaseUrl !== undefined) {
-    return config;
-  }
+function normalizeSampling(sampling: SamplePatch): SamplePatch {
+  const normalized: SamplePatch = {};
 
-  return {
-    ...config,
-    reportBaseUrl: getReportBaseUrl(Boolean(config.devMode))
-  };
-}
-
-function joinUrl(baseUrl: string, path: string): string {
-  if (/^https?:\/\//iu.test(path)) {
-    return path;
-  }
-
-  return `${baseUrl.replace(/\/+$/u, "")}/${path.replace(/^\/+/u, "")}`;
-}
-
-function readSampling(config: MonitorCoreConfig): Record<string, number> {
-  const sampling: Record<string, number> = {};
-
-  for (const [key, value] of Object.entries(config)) {
-    if (hasSample(value)) {
-      sampling[key] = normalizeSample(value.sample);
+  for (const [key, sample] of Object.entries(sampling) as Array<[SampleKey, number | undefined]>) {
+    if (sample !== undefined) {
+      normalized[key] = normalizeSample(sample);
     }
   }
 
-  return sampling;
-}
-
-function readSamplingRate(config: MonitorCoreConfig, key: string): number | undefined {
-  const value = config[key as keyof MonitorCoreConfig];
-  return hasSample(value) ? normalizeSample(value.sample) : undefined;
-}
-
-function hasSample(value: unknown): value is { sample: number } {
-  return Boolean(value && typeof value === "object" && "sample" in value);
+  return normalized;
 }
 
 function normalizeSample(sample: number): number {
@@ -290,8 +307,4 @@ function normalizeSample(sample: number): number {
   }
 
   return Math.min(1, Math.max(0, sample));
-}
-
-function cloneConfig(config: MonitorCoreConfig): MonitorCoreConfig {
-  return mergeCoreConfig(config, {});
 }
