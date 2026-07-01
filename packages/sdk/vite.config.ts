@@ -5,8 +5,13 @@ export default defineConfig({
     lib: {
       entry: "src/index.ts",
       name: "MonitorSdk",
-      formats: ["es", "cjs"],
-      fileName: (format) => (format === "es" ? "index.js" : "index.cjs")
+      formats: ["es", "cjs", "iife"],
+      fileName: (format) => {
+        if (format === "es") {
+          return "index.js";
+        }
+        return format === "cjs" ? "index.cjs" : "index.iife.js";
+      }
     },
     rollupOptions: {
       external: [
@@ -21,8 +26,26 @@ export default defineConfig({
         "@monitor/plugin-perf-fsp2",
         "@monitor/plugin-perf-ird",
         "@monitor/plugin-perf-shr",
-        "@monitor/plugin-perf-cache"
-      ]
+        "@monitor/plugin-perf-cache",
+        "@monitor/transport"
+      ],
+      output: {
+        globals: {
+          "@monitor/core": "MonitorCore",
+          "@monitor/plugin-error": "MonitorPluginError",
+          "@monitor/plugin-resource": "MonitorPluginResource",
+          "@monitor/plugin-page": "MonitorPluginPage",
+          "@monitor/plugin-pv": "MonitorPluginPv",
+          "@monitor/plugin-metric": "MonitorPluginMetric",
+          "@monitor/plugin-logan": "MonitorPluginLogan",
+          "@monitor/plugin-horn": "MonitorPluginHorn",
+          "@monitor/plugin-perf-fsp2": "MonitorPluginPerfFsp2",
+          "@monitor/plugin-perf-ird": "MonitorPluginPerfIrd",
+          "@monitor/plugin-perf-shr": "MonitorPluginPerfShr",
+          "@monitor/plugin-perf-cache": "MonitorPluginPerfCache",
+          "@monitor/transport": "MonitorTransport"
+        }
+      }
     }
   }
 });

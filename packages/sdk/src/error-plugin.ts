@@ -1,0 +1,40 @@
+import { getPageUrl, type MonitorContext, type Plugin } from "@monitor/core";
+import { createErrorCapture, ErrorManager, type ErrorCapture, type ErrorManagerOptions } from "@monitor/plugin-error";
+
+export interface ErrorPluginOptions extends Omit<Partial<ErrorManagerOptions>, "send" | "cfgManager"> {
+  onReady?: (manager: ErrorManager) => void;
+}
+
+export function createErrorPlugin(options: ErrorPluginOptions = {}): Plugin {
+  let manager: ErrorManager | undefined;
+  let capture: ErrorCapture | undefined;
+
+  return {
+    name: "@monitor/plugin-error",
+    start(context: MonitorContext) {
+      const config = context.cfgManager.getConfig();
+      manager = new ErrorManager({
+        ...options,
+        cfgManager: context.cfgManager,
+        send: context.transport.send.bind(context.transport),
+        pageUrl: options.pageUrl ?? getPageUrl(),
+        maxNum: options.maxNum ?? config.error.maxQueueLength,
+        ignoreList: options.ignoreList ?? config.error.ignoreList
+      });
+      options.onReady?.(manager);
+      void manager.sendCachedErrors().catch(() => undefined);
+      if (config.autoCatch.js || config.autoCatch.unhandledrejection || config.autoCatch.console) {
+        capture = createErrorCapture({
+          addError: manager.addError.bind(manager),
+          captureConsoleError: config.autoCatch.console
+        });
+        capture.start();
+      }
+    },
+    stop() {
+      capture?.stop();
+      capture = undefined;
+      manager = undefined;
+    }
+  };
+}

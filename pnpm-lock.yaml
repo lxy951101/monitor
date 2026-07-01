@@ -228,6 +228,9 @@ importers:
       '@monitor/plugin-resource':
         specifier: workspace:*
         version: link:../plugin-resource
+      '@monitor/transport':
+        specifier: workspace:*
+        version: link:../transport
 
   packages/transport:
     dependencies:

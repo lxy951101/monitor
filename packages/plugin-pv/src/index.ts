@@ -6,6 +6,7 @@ export const packageName = "@monitor/plugin-pv";
 
 export interface PvPluginOptions extends Omit<Partial<PvManagerOptions>, "send" | "cfgManager"> {
   spa?: boolean | SpaPvOptions;
+  onReady?: (manager: PvManager) => void;
 }
 
 export function createPvPlugin(options: PvPluginOptions = {}): Plugin {
@@ -21,6 +22,7 @@ export function createPvPlugin(options: PvPluginOptions = {}): Plugin {
         send: context.transport.send.bind(context.transport),
         autoReport: options.autoReport ?? context.cfgManager.getConfig("autoCatch").pv
       });
+      options.onReady?.(manager);
       manager.start();
 
       if (shouldStartSpa(context, options)) {
