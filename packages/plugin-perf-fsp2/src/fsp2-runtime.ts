@@ -59,6 +59,7 @@ interface Fsp2WatchState extends Fsp2ClsRuntimeState {
   now: () => number;
   onVisibilityChange?: () => void;
   onInteract?: () => void;
+  elementValidationMap: Map<Element, boolean>;
 }
 
 export function watchFsp2Runtime(manager: Fsp2Manager, options: Fsp2WatchOptions): (() => void) | undefined {
@@ -81,7 +82,8 @@ export function watchFsp2Runtime(manager: Fsp2Manager, options: Fsp2WatchOptions
   }
 
   const start = () => startFspCheck(manager, runtime, state, stop);
-  if (options.defer) {
+  // 对齐 owl: defer=false 时也需要 body 存在才能同步执行
+  if (options.defer || !runtime.document?.body) {
     state.timer = runtime.setTimeout(start, 0);
   } else {
     start();
@@ -143,7 +145,8 @@ function createWatchState(runtime: Fsp2Runtime, options: Fsp2WatchOptions): Fsp2
     allMovedNodesRects: [],
     useIgnore: options.useIgnore,
     fspClsEnable: options.fspClsEnable,
-    now
+    now,
+    elementValidationMap: new Map()
   };
 }
 
@@ -201,7 +204,7 @@ function createMutationObserver(
     try {
       const timestamp = state.now();
       state.originMutationCount += 1;
-      const elements = measureCost(state, () => collectMutationElements(records, runtime, state.useIgnore));
+      const elements = measureCost(state, () => collectMutationElements(records, runtime, state.useIgnore, state.elementValidationMap));
       if (elements.length === 0 || !state.detector) {
         return;
       }
@@ -242,7 +245,7 @@ function checkInitialScreen(runtime: Fsp2Runtime, state: Fsp2WatchState): boolea
 
   return measureCost(state, () => state.detector?.checkInitialPoints((point) => {
     const elements = doc.elementsFromPoint?.(point.x, point.y) ?? [];
-    return elements.some((element) => isValidElement(element, runtime, state.useIgnore));
+    return elements.some((element) => isValidElement(element, runtime, state.useIgnore, state.elementValidationMap));
   }, state.now())) ?? false;
 }
 
@@ -278,7 +281,7 @@ function finishByTimeout(
     timestamp = state.now();
     const body = runtime.document?.body;
     const elements = body
-      ? measureCost(state, () => getLeafElements(body, runtime, state.useIgnore))
+      ? measureCost(state, () => getLeafElements(body, runtime, state.useIgnore, state.elementValidationMap))
       : [];
     success = Boolean(measureCost(state, () => state.detector?.checkTimeoutElements(elements, timestamp)));
     stop();
@@ -288,6 +291,10 @@ function finishByTimeout(
   }
   if (success && state.detector) {
     state.pageLoadedTime = state.detector.completionTime(timestamp);
+    // 对齐 owl: 纯静态页面（无 DOM 变更）使用初始时间戳 fspStartTimestamp
+    if (state.mutationCount === 0) {
+      state.pageLoadedTime = state.fspMutationTimestamp;
+    }
     if (state.fspClsEnable) {
       startClsStableCheck(manager, state, state.pageLoadedTime);
       return;
@@ -412,13 +419,13 @@ function createClsMetrics(state: Fsp2WatchState, timestamp: number): Fsp2ClsMetr
   };
 }
 
-function collectMutationElements(records: MutationRecord[], runtime: Fsp2Runtime, useIgnore: boolean): Element[] {
+function collectMutationElements(records: MutationRecord[], runtime: Fsp2Runtime, useIgnore: boolean, cache: Map<Element, boolean>): Element[] {
   const elements = new Set<Element>();
   for (const record of records) {
     if (shouldSkipMutationTarget(record.target)) {
       continue;
     }
-    collectRecordElements(record, runtime, useIgnore, elements);
+    collectRecordElements(record, runtime, useIgnore, cache, elements);
   }
   return Array.from(elements);
 }
@@ -427,10 +434,11 @@ function collectRecordElements(
   record: MutationRecord,
   runtime: Fsp2Runtime,
   useIgnore: boolean,
+  cache: Map<Element, boolean>,
   elements: Set<Element>
 ): void {
   const target = record.target as Element | undefined;
-  if (record.type === "characterData" && target?.parentElement && isValidElement(target.parentElement, runtime, useIgnore)) {
+  if (record.type === "characterData" && target?.parentElement && isValidElement(target.parentElement, runtime, useIgnore, cache)) {
     elements.add(target.parentElement);
     return;
   }
@@ -439,54 +447,72 @@ function collectRecordElements(
     if (!isConnectedNode(node)) {
       continue;
     }
-    if (isTextNode(node) && target && isValidElement(target, runtime, useIgnore)) {
+    if (isTextNode(node) && target && isValidElement(target, runtime, useIgnore, cache)) {
       elements.add(target);
     } else if (isElementNode(node)) {
-      for (const element of getLeafElements(node as Element, runtime, useIgnore)) {
+      for (const element of getLeafElements(node as Element, runtime, useIgnore, cache)) {
         elements.add(element);
       }
     }
   }
 }
 
-function getLeafElements(element: Element, runtime: Fsp2Runtime, useIgnore: boolean): Element[] {
-  if (isValidElement(element, runtime, useIgnore)) {
+function getLeafElements(element: Element, runtime: Fsp2Runtime, useIgnore: boolean, cache?: Map<Element, boolean>): Element[] {
+  if (isValidElement(element, runtime, useIgnore, cache)) {
     return [element];
   }
 
   const leafElements: Element[] = [];
   for (const child of Array.from(element.children ?? [])) {
-    leafElements.push(...getLeafElements(child, runtime, useIgnore));
+    leafElements.push(...getLeafElements(child, runtime, useIgnore, cache));
   }
   return leafElements;
 }
 
-function isValidElement(element: Element, runtime: Fsp2Runtime, useIgnore: boolean): boolean {
+function isValidElement(element: Element, runtime: Fsp2Runtime, useIgnore: boolean, cache?: Map<Element, boolean>): boolean {
+  // 对齐 owl elementValidationMap: 缓存避免重复 getComputedStyle
+  const cached = cache?.get(element);
+  if (typeof cached === "boolean") {
+    return cached;
+  }
+
   const nodeName = element.nodeName.toUpperCase();
   if (["HTML", "HEAD", "META", "LINK", "SCRIPT", "STYLE", "NOSCRIPT", "BODY"].includes(nodeName)) {
+    cache?.set(element, false);
     return false;
   }
   if (useIgnore && shouldIgnoreElement(element, runtime.document?.body)) {
+    cache?.set(element, false);
     return false;
   }
 
   const style = runtime.getComputedStyle?.(element);
   if (style?.visibility === "hidden" || style?.display === "none" || String(style?.opacity) === "0") {
+    cache?.set(element, false);
     return false;
   }
 
   const background = style?.getPropertyValue("background-image") || style?.getPropertyValue("background") || "";
-  return hasValidTagName(nodeName) || /url\(.*?\)/g.test(background) || hasDirectText(element);
+  const valid = hasValidTagName(nodeName) || /url\(.*?\)/g.test(background) || hasDirectText(element);
+  cache?.set(element, valid);
+  return valid;
 }
 
 function shouldIgnoreElement(element: Element, body?: Element): boolean {
+  // 对齐 owl: 使用 __fspIgnored 属性缓存递归结果，避免重复遍历祖先链
+  const node = element as Record<string, unknown>;
+  if (typeof node.__fspIgnored === "boolean") {
+    return node.__fspIgnored as boolean;
+  }
   let current: Element | null = element;
   while (current && current !== body) {
     if (current.hasAttribute?.("perf_ignore")) {
+      node.__fspIgnored = true;
       return true;
     }
     current = current.parentElement;
   }
+  node.__fspIgnored = false;
   return false;
 }
 

@@ -219,12 +219,13 @@ function viewportArea(runtime: Fsp2Runtime): number {
   return viewportWidth(runtime) * viewportHeight(runtime);
 }
 
+// 对齐 owl: CLS 计算使用 clientWidth/clientHeight（不含滚动条），与检测器初始化不同
 function viewportWidth(runtime: Fsp2Runtime): number {
-  return Math.max(runtime.document?.documentElement?.clientWidth ?? 0, runtime.innerWidth ?? 0, 1);
+  return runtime.document?.documentElement?.clientWidth || runtime.innerWidth || 1;
 }
 
 function viewportHeight(runtime: Fsp2Runtime): number {
-  return Math.max(runtime.document?.documentElement?.clientHeight ?? 0, runtime.innerHeight ?? 0, 1);
+  return runtime.document?.documentElement?.clientHeight || runtime.innerHeight || 1;
 }
 
 function toRectLike(rect: DOMRect | ClientRect): RectLike {
