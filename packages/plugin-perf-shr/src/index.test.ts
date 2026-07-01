@@ -128,6 +128,6 @@ function createContext(send: ReturnType<typeof vi.fn>) {
     cfgManager: new CfgManager({ project: "demo", perf: { shr: { endpoint: "/perf/shr" } } }),
     eventBus: new EventBus(),
     logger: new Logger(false),
-    transport: { send },
+    transport: { send: send as any },
   };
 }

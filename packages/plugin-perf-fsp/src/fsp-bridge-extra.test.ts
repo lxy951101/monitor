@@ -86,7 +86,7 @@ function createContext(send: ReturnType<typeof vi.fn>, fsp: Record<string, unkno
     }),
     eventBus: new EventBus(),
     logger: new Logger(false),
-    transport: { send },
+    transport: { send: send as any },
   };
 }
 

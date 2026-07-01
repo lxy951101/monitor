@@ -35,6 +35,12 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sdk
 
+  packages/build-config:
+    devDependencies:
+      vite:
+        specifier: ^8.1.0
+        version: 8.1.2(@types/node@22.20.0)
+
   packages/config: {}
 
   packages/core:
