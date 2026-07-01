@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    if: contains(github.event.head_commit.message, 'Version Packages')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - id: version
+        run: echo "tag=$(node -e "console.log(require('./packages/sdk/package.json').version)")" >> $GITHUB_OUTPUT
+
+      - id: changelog
+        run: |
+          awk '/^## /{if(++c==2) exit} c' packages/sdk/CHANGELOG.md > /tmp/release-body.md
+          echo "body_file=/tmp/release-body.md" >> $GITHUB_OUTPUT
+
+      - run: |
+          git tag "v${{ steps.version.outputs.tag }}"
+          git push origin "v${{ steps.version.outputs.tag }}"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.tag }}
+          body_path: ${{ steps.changelog.outputs.body_file }}
+          files: packages/bundle/dist/monitor.min.js
