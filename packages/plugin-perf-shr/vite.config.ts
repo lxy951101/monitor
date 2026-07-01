@@ -1,15 +1,6 @@
-import { defineConfig } from "vite";
+import { createLibConfig } from '@monitor/build-config';
 
-export default defineConfig({
-  build: {
-    lib: {
-      entry: "src/index.ts",
-      name: "MonitorPluginPerfShr",
-      formats: ["es", "cjs"],
-      fileName: (format) => (format === "es" ? "index.js" : "index.cjs"),
-    },
-    rollupOptions: {
-      external: ["@monitor/core", "@monitor/protocol", "@monitor/transport"],
-    },
-  },
+export default createLibConfig({
+  name: 'MonitorPluginPerfShr',
+  external: ['@monitor/core', '@monitor/plugin-perf-cache', '@monitor/protocol', '@monitor/transport'],
 });

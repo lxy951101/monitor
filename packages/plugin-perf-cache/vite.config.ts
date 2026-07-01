@@ -1,11 +1,6 @@
-import { defineConfig } from "vite";
+import { createLibConfig } from '@monitor/build-config';
 
-export default defineConfig({
-  build: {
-    lib: {
-      entry: "src/index.ts",
-      formats: ["es", "cjs"],
-      fileName: (format) => (format === "es" ? "index.js" : "index.cjs"),
-    },
-  },
+export default createLibConfig({
+  name: 'MonitorPluginPerfCache',
+  external: ['@monitor/transport'],
 });

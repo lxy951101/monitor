@@ -11,5 +11,8 @@
   },
   "dependencies": {
     "@monitor/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@monitor/build-config": "workspace:*"
   }
 }

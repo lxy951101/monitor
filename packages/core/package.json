@@ -2,14 +2,12 @@
   "name": "@monitor/core",
   "version": "0.0.0",
   "type": "module",
-  "main": "dist/index.cjs",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": "./dist/index.js"
     }
   },
   "scripts": {
@@ -21,5 +19,8 @@
     "@monitor/config": "workspace:*",
     "@monitor/protocol": "workspace:*",
     "@monitor/transport": "workspace:*"
+  },
+  "devDependencies": {
+    "@monitor/build-config": "workspace:*"
   }
 }

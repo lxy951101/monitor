@@ -1,15 +1,6 @@
-import { defineConfig } from "vite";
+import { createLibConfig } from '@monitor/build-config';
 
-export default defineConfig({
-  build: {
-    lib: {
-      entry: "src/index.ts",
-      name: "MonitorPluginResource",
-      formats: ["es", "cjs"],
-      fileName: (format) => (format === "es" ? "index.js" : "index.cjs"),
-    },
-    rollupOptions: {
-      external: ["@monitor/core", "@monitor/protocol", "@monitor/transport"],
-    },
-  },
+export default createLibConfig({
+  name: 'MonitorPluginResource',
+  external: ['@monitor/core', '@monitor/protocol', '@monitor/transport'],
 });

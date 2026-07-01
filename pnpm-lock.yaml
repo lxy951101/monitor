@@ -34,6 +34,10 @@ importers:
       '@monitor/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
+    devDependencies:
+      '@monitor/build-config':
+        specifier: workspace:*
+        version: link:../../packages/build-config
 
   packages/build-config:
     devDependencies:
@@ -41,7 +45,11 @@ importers:
         specifier: ^8.1.0
         version: 8.1.2(@types/node@22.20.0)
 
-  packages/config: {}
+  packages/config:
+    devDependencies:
+      '@monitor/build-config':
+        specifier: workspace:*
+        version: link:../build-config
 
   packages/core:
     dependencies:
@@ -54,6 +62,10 @@ importers:
       '@monitor/transport':
         specifier: workspace:*
         version: link:../transport
+    devDependencies:
+      '@monitor/build-config':
+        specifier: workspace:*
+        version: link:../build-config
 
   packages/plugin-error:
     dependencies:
@@ -66,6 +78,10 @@ importers:
       '@monitor/transport':
         specifier: workspace:*
         version: link:../transport
+    devDependencies:
+      '@monitor/build-config':
+        specifier: workspace:*
+        version: link:../build-config
 
   packages/plugin-metric:
     dependencies:
@@ -78,6 +94,10 @@ importers:
       '@monitor/transport':
         specifier: workspace:*
         version: link:../transport
+    devDependencies:
+      '@monitor/build-config':
+        specifier: workspace:*
+        version: link:../build-config
 
   packages/plugin-page:
     dependencies:
@@ -90,12 +110,20 @@ importers:
       '@monitor/transport':
         specifier: workspace:*
         version: link:../transport
+    devDependencies:
+      '@monitor/build-config':
+        specifier: workspace:*
+        version: link:../build-config
 
   packages/plugin-perf-cache:
     dependencies:
       '@monitor/transport':
         specifier: workspace:*
         version: link:../transport
+    devDependencies:
+      '@monitor/build-config':
+        specifier: workspace:*
+        version: link:../build-config
 
   packages/plugin-perf-fsp:
     dependencies:
@@ -111,6 +139,10 @@ importers:
       '@monitor/transport':
         specifier: workspace:*
         version: link:../transport
+    devDependencies:
+      '@monitor/build-config':
+        specifier: workspace:*
+        version: link:../build-config
 
   packages/plugin-perf-ird:
     dependencies:
@@ -126,6 +158,10 @@ importers:
       '@monitor/transport':
         specifier: workspace:*
         version: link:../transport
+    devDependencies:
+      '@monitor/build-config':
+        specifier: workspace:*
+        version: link:../build-config
 
   packages/plugin-perf-shr:
     dependencies:
@@ -141,6 +177,10 @@ importers:
       '@monitor/transport':
         specifier: workspace:*
         version: link:../transport
+    devDependencies:
+      '@monitor/build-config':
+        specifier: workspace:*
+        version: link:../build-config
 
   packages/plugin-pv:
     dependencies:
@@ -153,6 +193,10 @@ importers:
       '@monitor/transport':
         specifier: workspace:*
         version: link:../transport
+    devDependencies:
+      '@monitor/build-config':
+        specifier: workspace:*
+        version: link:../build-config
 
   packages/plugin-resource:
     dependencies:
@@ -165,12 +209,20 @@ importers:
       '@monitor/transport':
         specifier: workspace:*
         version: link:../transport
+    devDependencies:
+      '@monitor/build-config':
+        specifier: workspace:*
+        version: link:../build-config
 
   packages/protocol:
     dependencies:
       '@monitor/config':
         specifier: workspace:*
         version: link:../config
+    devDependencies:
+      '@monitor/build-config':
+        specifier: workspace:*
+        version: link:../build-config
 
   packages/sdk:
     dependencies:
@@ -207,6 +259,10 @@ importers:
       '@monitor/transport':
         specifier: workspace:*
         version: link:../transport
+    devDependencies:
+      '@monitor/build-config':
+        specifier: workspace:*
+        version: link:../build-config
 
   packages/transport:
     dependencies:
@@ -216,6 +272,10 @@ importers:
       '@monitor/protocol':
         specifier: workspace:*
         version: link:../protocol
+    devDependencies:
+      '@monitor/build-config':
+        specifier: workspace:*
+        version: link:../build-config
 
 packages:
 

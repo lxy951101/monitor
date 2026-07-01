@@ -4,10 +4,12 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, type UserConfig } from 'vite';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+// build-config 位于 packages/build-config/src，根目录需要向上三级
+const projectRoot = resolve(__dirname, '..', '..', '..');
 
 /** tsconfig paths 自动解析结果 */
 function readTsconfigPaths(): Record<string, string> {
-  const tsconfigPath = resolve(__dirname, '../../tsconfig.base.json');
+  const tsconfigPath = resolve(projectRoot, 'tsconfig.base.json');
   const raw = readFileSync(tsconfigPath, 'utf-8');
   const parsed = JSON.parse(raw);
   const paths = parsed.compilerOptions?.paths ?? {};
@@ -15,12 +17,7 @@ function readTsconfigPaths(): Record<string, string> {
   const alias: Record<string, string> = {};
   for (const [key, values] of Object.entries(paths) as [string, string[]][]) {
     const aliasKey = key.replace('/*', '');
-    const aliasValue = resolve(
-      __dirname,
-      '..',
-      '..',
-      values[0].replace('/*', ''),
-    );
+    const aliasValue = resolve(projectRoot, values[0].replace('/*', ''));
     alias[aliasKey] = aliasValue;
   }
   return alias;
