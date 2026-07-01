@@ -1,5 +1,5 @@
 import { CfgManager, getPageUrl, type CoreConfigPatch } from "@monitor/core";
-import { createPvModel, encodePvQuery, type CreatePvModelInput, type QueryParams } from "@monitor/protocol";
+import { createPvModel, encodePvQuery, type CreatePvModelInput } from "@monitor/protocol";
 import type { TransportRequest, TransportResponse } from "@monitor/transport";
 
 type SendFn = (request: TransportRequest) => Promise<TransportResponse | void>;
@@ -16,6 +16,8 @@ export interface PvReportOptions {
   container?: string;
   os?: string;
   unionid?: string;
+  /** 200ms 防抖：快速连续调用时只上报最后一次。SPA 路由切换时使用。 */
+  delay?: boolean;
 }
 
 export interface PvResetOptions {
@@ -32,6 +34,8 @@ export interface PvManagerOptions extends CoreConfigPatch {
   ctags?: string | Ctags;
   autoReport?: boolean;
   env?: Parameters<typeof getPageUrl>[0];
+  /** PV 上报成功后的回调，可用于处理服务端下发的远程配置 */
+  onResponse?: (response: TransportResponse, cfgManager: CfgManager) => void;
 }
 
 export class PvManager {
@@ -42,6 +46,7 @@ export class PvManager {
   private pageId: string | undefined;
   private ctags: string | Ctags | undefined;
   private started = false;
+  private delayTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(options: PvManagerOptions) {
     this.options = options;
@@ -65,6 +70,10 @@ export class PvManager {
 
   stop(): void {
     this.started = false;
+    if (this.delayTimer !== undefined) {
+      clearTimeout(this.delayTimer);
+      this.delayTimer = undefined;
+    }
   }
 
   resetPv(options: PvResetOptions = {}): void {
@@ -80,13 +89,32 @@ export class PvManager {
   }
 
   async report(options: PvReportOptions = {}): Promise<void> {
+    // 200ms 防抖：快速连续调用时只上报最后一次
+    if (options.delay) {
+      if (this.delayTimer !== undefined) {
+        clearTimeout(this.delayTimer);
+      }
+      return new Promise<void>((resolve) => {
+        this.delayTimer = setTimeout(() => {
+          this.delayTimer = undefined;
+          resolve(this.report({ ...options, delay: false }));
+        }, 200);
+      });
+    }
+
     const model = createPvModel(this.createModelInput(options));
     const query = encodePvQuery(model);
 
-    await this.send({
-      method: "GET",
-      url: this.cfgManager.getApiPath("pvTs", decodeQuery(query))
+    const response = await this.send({
+      method: "POST",
+      url: this.cfgManager.getApiPath("pvTs"),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: query
     });
+
+    if (response) {
+      this.options.onResponse?.(response, this.cfgManager);
+    }
   }
 
   private createModelInput(options: PvReportOptions): CreatePvModelInput {
@@ -124,12 +152,4 @@ function mergeCtags(base: string | Ctags | undefined, patch: string | Ctags | un
     return patch;
   }
   return { ...base, ...patch };
-}
-
-function decodeQuery(query: string): QueryParams {
-  const params: QueryParams = {};
-  for (const [key, value] of new URLSearchParams(query)) {
-    params[key] = value;
-  }
-  return params;
 }

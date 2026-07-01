@@ -22,7 +22,7 @@ export function startSpaPv(manager: PvManager, options: SpaPvOptions = {}): Stop
     }
 
     manager.resetPv({ pageUrl: url });
-    void manager.report().catch(() => {
+    void manager.report({ delay: true }).catch(() => {
       // SPA 自动 PV 的后台发送失败不应产生未处理 rejection。
     });
   });
