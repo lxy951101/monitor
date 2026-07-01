@@ -123,21 +123,21 @@ export { monitor as Monitor };
 
 ### 4. 不改动的包
 
-| 包 | 说明 |
-|---|---|
-| `plugin-pv` | 已有 `createPvPlugin`，自足 |
-| `plugin-metric` | 已有 `createMetricPlugin`，自足 |
-| `plugin-page` | 已有 `createPagePlugin`，自足 |
-| `plugin-resource` | 已有 `createResourcePlugin`，自足 |
-| `plugin-perf-fsp` | 已有 `createFspPlugin`，自足 |
-| `plugin-perf-ird` | 已有 `createIrdPlugin`，自足 |
-| `plugin-perf-shr` | 已有 `createShrPlugin`，自足 |
-| `plugin-perf-cache` | 工具包，无 Plugin 工厂 |
-| `core` | `Plugin` 接口不变 |
-| `transport` | 不变 |
-| `protocol` | 不变 |
-| `build-config` | 不变 |
-| `config` | 不变 |
+| 包                  | 说明                              |
+| ------------------- | --------------------------------- |
+| `plugin-pv`         | 已有 `createPvPlugin`，自足       |
+| `plugin-metric`     | 已有 `createMetricPlugin`，自足   |
+| `plugin-page`       | 已有 `createPagePlugin`，自足     |
+| `plugin-resource`   | 已有 `createResourcePlugin`，自足 |
+| `plugin-perf-fsp`   | 已有 `createFspPlugin`，自足      |
+| `plugin-perf-ird`   | 已有 `createIrdPlugin`，自足      |
+| `plugin-perf-shr`   | 已有 `createShrPlugin`，自足      |
+| `plugin-perf-cache` | 工具包，无 Plugin 工厂            |
+| `core`              | `Plugin` 接口不变                 |
+| `transport`         | 不变                              |
+| `protocol`          | 不变                              |
+| `build-config`      | 不变                              |
+| `config`            | 不变                              |
 
 ---
 
@@ -194,12 +194,12 @@ client.start({ project: "demo" });
 
 对现有用户的影响：
 
-| 使用方式 | 是否受影响 | 迁移方法 |
-|---|---|---|
-| `import { Monitor } from "@monitor/sdk"` + `Monitor.start()` | **是** | 改为显式安装插件，或调用 `registerDefaultPlugins(Monitor.client)` |
-| `new MonitorClient({ registerDefaults: false })` | **是**（选项被删除） | 删除 `registerDefaults: false`，现在默认就是 false |
-| `new MonitorClient()` + 手动 `.use()` | 否 | 无变化 |
-| IIFE `<script src="monitor.iife.js">` | 否 | 无变化 |
+| 使用方式                                                     | 是否受影响           | 迁移方法                                                          |
+| ------------------------------------------------------------ | -------------------- | ----------------------------------------------------------------- |
+| `import { Monitor } from "@monitor/sdk"` + `Monitor.start()` | **是**               | 改为显式安装插件，或调用 `registerDefaultPlugins(Monitor.client)` |
+| `new MonitorClient({ registerDefaults: false })`             | **是**（选项被删除） | 删除 `registerDefaults: false`，现在默认就是 false                |
+| `new MonitorClient()` + 手动 `.use()`                        | 否                   | 无变化                                                            |
+| IIFE `<script src="monitor.iife.js">`                        | 否                   | 无变化                                                            |
 
 ### 迁移示例（最简）
 
