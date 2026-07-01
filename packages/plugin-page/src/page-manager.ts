@@ -1,6 +1,5 @@
 import { CfgManager, getPageUrl, type CoreConfigPatch } from "@monitor/core";
 import type { TransportRequest, TransportResponse } from "@monitor/transport";
-import { calculateFirstScreen, type FirstScreenNode } from "./first-screen";
 import {
  buildSpeedPoints,
  encodePageSpeedFromTiming,
@@ -26,14 +25,13 @@ export interface PageManagerOptions extends CoreConfigPatch {
 }
 
 /**
- * 页面测速管理器，内部实现。
+ * 页面测速管理器。
  *
  * 核心职责：
  * 1. 采集 W3C Navigation Timing + Paint Timing，组装为 27 点位数组
- * 2. 支持首屏时间 (FST) 结果合并到点位 25/26
- * 3. 上报前支持 delay 防抖（重复调用会重置计时器）
- * 4. 自动检测页面缓存状态（noCache）
- * 5. 支持外部填入自定义测速点位（addPoint）
+ * 2. 上报前支持 delay 防抖（重复调用会重置计时器）
+ * 3. 自动检测页面缓存状态（noCache）
+ * 4. 支持外部填入自定义测速点位（addPoint）
  */
 export class PageManager {
  private readonly cfgManager: CfgManager;
@@ -208,22 +206,6 @@ export class PageManager {
   return this.reportCustomSpeedOld(points);
  }
 
- // ─── 首屏上报 ───────────────────────────────────────────────
-
- reportFirstScreen(nodes: FirstScreenNode[], viewportHeight: number): Promise<void> {
-  const result = calculateFirstScreen(nodes, viewportHeight);
-  return this.reportCustomSpeedOld([result.time, result.score]);
- }
-
- /**
-  * 上报路由首屏时间（SPA 路由切换后的 FST）。
-  * 内部实现。
-  */
- reportRouteFst(fst: number, pageUrl: string): void {
-  const rawPoints: number[] = [];
-  rawPoints[27] = fst;
-  this.doSend(rawPoints, [], pageUrl);
- }
 
  // ─── 自定义点位 ─────────────────────────────────────────────
 

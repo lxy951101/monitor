@@ -39,7 +39,7 @@ export interface ContainerBridgeReporterOptions {
 }
 
 export interface ContainerBridgeReporter {
- reportFsp2(event: Record<string, unknown>): Promise<{ ok: true; status: 0; body?: unknown; cached?: boolean }>;
+ reportFsp(event: Record<string, unknown>): Promise<{ ok: true; status: 0; body?: unknown; cached?: boolean }>;
 }
 
 interface CachedBridgeEvent {
@@ -67,7 +67,7 @@ export function createBridgeTransport(options: BridgeTransportOptions): Transpor
 
 export function createContainerBridgeReporter(options: ContainerBridgeReporterOptions): ContainerBridgeReporter {
  return {
-  async reportFsp2(event) {
+  async reportFsp(event) {
    const methodName = options.preferredMethod ?? "ffp.record";
    const method = getBridgeMethods(options).find((candidate) => getBridgeMethod(options.bridge, candidate));
    if (!method) {

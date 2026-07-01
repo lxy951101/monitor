@@ -19,16 +19,4 @@ describe("PageManager", () => {
   // customspeed 包含点位编码: encodePageSpeedFromTiming 的点位 5=10, 12=80
   expect(request.url).toContain("customspeed=");
  });
-
- it("上报首屏计算结果", async () => {
-  const send = vi.fn().mockResolvedValue(undefined);
-  const manager = new PageManager({ project: "demo", pageUrl: "/home", reportBaseUrl: "", send });
-
-  await manager.reportFirstScreen([{ tagName: "IMG", top: 0, height: 10, width: 10, loadTime: 30 }], 100);
-
-  const request = send.mock.calls[0][0];
-  expect(request.method).toBe("GET");
-  expect(request.url).toContain("/api/speedts");
-  expect(request.url).toContain("customspeed=");
- });
 });

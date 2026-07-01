@@ -270,9 +270,9 @@ project=demo&pageurl=%2Fhome&pageId=abc&timestamp=1234567890&...
 
 **文件**: `src/perf.ts`
 
-**用途**: 定义通用性能日志和 FSP2（秒开 2.0）容器桥事件的 payload 结构。
+**用途**: 定义通用性能日志和 FSP（秒开）容器桥事件的 payload 结构。
 
-**对应 **: Perf 插件 + FSP2 Bridge 事件上报。
+**对应 **: Perf 插件 + FSP Bridge 事件上报。
 
 ### 核心类型
 
@@ -286,7 +286,7 @@ project=demo&pageurl=%2Fhome&pageId=abc&timestamp=1234567890&...
 }
 ```
 
-**Fsp2BridgeEvent** — 秒开 2.0 容器桥事件：
+**FspBridgeEvent** — 秒开 容器桥事件：
 
 | 字段 | 说明 |
 |------|------|
@@ -306,7 +306,7 @@ project=demo&pageurl=%2Fhome&pageId=abc&timestamp=1234567890&...
 |------|------|
 | `createPerfLogPayload` | 构建通用日志 payload（多条日志） |
 | `createPerfCustomPayload` | 构建通用日志 payload（单条日志 + metrics） |
-| `createFsp2BridgeEvent` | 构建 FSP2 容器桥事件 |
+| `createFspBridgeEvent` | 构建 FSP 容器桥事件 |
 
 ---
 

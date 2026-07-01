@@ -70,7 +70,7 @@ Monitor.start({
 
 ## 指标覆盖
 
-- 秒开 2.0：`@monitor/plugin-perf-fsp2`，上报 `fsp2_web`。
+- 秒开：`@monitor/plugin-perf-fsp`，上报 `fsp_web`。
 - 响应率/交互响应耗时：`@monitor/plugin-perf-ird`，上报 `ird_web`。
 - 滚动帧率和掉帧：`@monitor/plugin-perf-shr`，上报 `shr_web`。
 - 老首屏和页面性能：`@monitor/plugin-page`。

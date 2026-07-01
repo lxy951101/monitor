@@ -1,9 +1,9 @@
-import { Fsp2ViewportDetector } from "./fsp2-detector";
-import { startClsStableCheck, stopClsStableCheck, type Fsp2ClsRuntimeState } from "./fsp2-cls";
-import type { Fsp2ClsMetrics, Fsp2Manager } from "./index";
+import { FspViewportDetector } from "./fsp-detector";
+import { startClsStableCheck, stopClsStableCheck, type FspClsRuntimeState } from "./fsp-cls";
+import type { FspClsMetrics, FspManager } from "./index";
 
-export interface Fsp2Runtime {
- document?: Fsp2RuntimeDocument;
+export interface FspRuntime {
+ document?: FspRuntimeDocument;
  innerWidth?: number;
  innerHeight?: number;
  location?: Pick<Location, "href" | "pathname">;
@@ -25,7 +25,7 @@ export interface Fsp2Runtime {
  clearInterval?: (timer: ReturnType<typeof setInterval>) => void;
 }
 
-export interface Fsp2RuntimeDocument {
+export interface FspRuntimeDocument {
  visibilityState?: string;
  readyState?: string;
  body?: Element;
@@ -35,19 +35,19 @@ export interface Fsp2RuntimeDocument {
  removeEventListener?: (type: "click" | "wheel" | "touchmove", listener: () => void) => void;
 }
 
-export interface Fsp2WatchOptions {
+export interface FspWatchOptions {
  timeout: number;
  useIgnore: boolean;
  fspClsEnable: boolean;
  defer: boolean;
- runtime?: Fsp2Runtime;
+ runtime?: FspRuntime;
  now?: () => number;
 }
 
-interface Fsp2WatchState extends Fsp2ClsRuntimeState {
- runtime: Fsp2Runtime;
- detector?: Fsp2ViewportDetector;
- observer?: InstanceType<NonNullable<Fsp2Runtime["MutationObserver"]>>;
+interface FspWatchState extends FspClsRuntimeState {
+ runtime: FspRuntime;
+ detector?: FspViewportDetector;
+ observer?: InstanceType<NonNullable<FspRuntime["MutationObserver"]>>;
  timer?: ReturnType<typeof setTimeout>;
  mutationCount: number;
  originMutationCount: number;
@@ -62,7 +62,7 @@ interface Fsp2WatchState extends Fsp2ClsRuntimeState {
  elementValidationMap: Map<Element, boolean>;
 }
 
-export function watchFsp2Runtime(manager: Fsp2Manager, options: Fsp2WatchOptions): (() => void) | undefined {
+export function watchFspRuntime(manager: FspManager, options: FspWatchOptions): (() => void) | undefined {
  const runtime = options.runtime ?? getRuntime();
  if (!runtime) {
   return undefined;
@@ -91,7 +91,7 @@ export function watchFsp2Runtime(manager: Fsp2Manager, options: Fsp2WatchOptions
  return stop;
 }
 
-function getRuntime(): Fsp2Runtime | undefined {
+function getRuntime(): FspRuntime | undefined {
  if (typeof window === "undefined") {
   return undefined;
  }
@@ -126,7 +126,7 @@ function getGlobalContainerBridge(): Record<string, unknown> | undefined {
  return undefined;
 }
 
-function createWatchState(runtime: Fsp2Runtime, options: Fsp2WatchOptions): Fsp2WatchState {
+function createWatchState(runtime: FspRuntime, options: FspWatchOptions): FspWatchState {
  const now = options.now ?? Date.now;
  return {
   runtime,
@@ -150,7 +150,7 @@ function createWatchState(runtime: Fsp2Runtime, options: Fsp2WatchOptions): Fsp2
  };
 }
 
-function supportFsp(runtime: Fsp2Runtime, state: Fsp2WatchState): boolean {
+function supportFsp(runtime: FspRuntime, state: FspWatchState): boolean {
  return Boolean(
   state.detector
   && runtime.document?.elementsFromPoint
@@ -159,9 +159,9 @@ function supportFsp(runtime: Fsp2Runtime, state: Fsp2WatchState): boolean {
 }
 
 function startFspCheck(
- manager: Fsp2Manager,
- runtime: Fsp2Runtime,
- state: Fsp2WatchState,
+ manager: FspManager,
+ runtime: FspRuntime,
+ state: FspWatchState,
  stop: () => void
 ): void {
  try {
@@ -184,20 +184,20 @@ function startFspCheck(
  }
 }
 
-function createRuntimeDetector(runtime: Fsp2Runtime): Fsp2ViewportDetector | undefined {
+function createRuntimeDetector(runtime: FspRuntime): FspViewportDetector | undefined {
  const viewportWidth = Math.max(runtime.document?.documentElement?.clientWidth ?? 0, runtime.innerWidth ?? 0);
  const viewportHeight = Math.max(runtime.document?.documentElement?.clientHeight ?? 0, runtime.innerHeight ?? 0);
  if (!viewportWidth || !viewportHeight) {
   return undefined;
  }
- return new Fsp2ViewportDetector(viewportWidth, viewportHeight);
+ return new FspViewportDetector(viewportWidth, viewportHeight);
 }
 
 function createMutationObserver(
- Observer: NonNullable<Fsp2Runtime["MutationObserver"]>,
- manager: Fsp2Manager,
- runtime: Fsp2Runtime,
- state: Fsp2WatchState,
+ Observer: NonNullable<FspRuntime["MutationObserver"]>,
+ manager: FspManager,
+ runtime: FspRuntime,
+ state: FspWatchState,
  stop: () => void
 ) {
  return new Observer((records) => {
@@ -223,9 +223,9 @@ function createMutationObserver(
 }
 
 function resetTimer(
- manager: Fsp2Manager,
- runtime: Fsp2Runtime,
- state: Fsp2WatchState,
+ manager: FspManager,
+ runtime: FspRuntime,
+ state: FspWatchState,
  stop: () => void
 ): ReturnType<typeof setTimeout> | undefined {
  if (state.originMutationCount >= 10) {
@@ -237,7 +237,7 @@ function resetTimer(
  return runtime.setTimeout(() => finishByTimeout(manager, runtime, state, stop), 5000);
 }
 
-function checkInitialScreen(runtime: Fsp2Runtime, state: Fsp2WatchState): boolean {
+function checkInitialScreen(runtime: FspRuntime, state: FspWatchState): boolean {
  const doc = runtime.document;
  if (!state.detector || !doc?.elementsFromPoint) {
   return false;
@@ -249,7 +249,7 @@ function checkInitialScreen(runtime: Fsp2Runtime, state: Fsp2WatchState): boolea
  }, state.now())) ?? false;
 }
 
-function finishSuccess(manager: Fsp2Manager, state: Fsp2WatchState, stop: () => void, timestamp: number): void {
+function finishSuccess(manager: FspManager, state: FspWatchState, stop: () => void, timestamp: number): void {
  if (!state.detector) {
   return;
  }
@@ -270,9 +270,9 @@ function finishSuccess(manager: Fsp2Manager, state: Fsp2WatchState, stop: () => 
 }
 
 function finishByTimeout(
- manager: Fsp2Manager,
- runtime: Fsp2Runtime,
- state: Fsp2WatchState,
+ manager: FspManager,
+ runtime: FspRuntime,
+ state: FspWatchState,
  stop: () => void
 ): void {
  let timestamp: number;
@@ -321,7 +321,7 @@ function finishByTimeout(
  state.detector?.forceReady(timestamp);
 }
 
-function finishByInteract(manager: Fsp2Manager, state: Fsp2WatchState, stop: () => void): void {
+function finishByInteract(manager: FspManager, state: FspWatchState, stop: () => void): void {
  stop();
  void manager.report({
   status: "interact",
@@ -332,7 +332,7 @@ function finishByInteract(manager: Fsp2Manager, state: Fsp2WatchState, stop: () 
  });
 }
 
-function finishByError(manager: Fsp2Manager, state: Fsp2WatchState, stop: () => void): void {
+function finishByError(manager: FspManager, state: FspWatchState, stop: () => void): void {
  stop();
  void manager.report({
   status: "error",
@@ -344,9 +344,9 @@ function finishByError(manager: Fsp2Manager, state: Fsp2WatchState, stop: () => 
 }
 
 function handleVisibilityChange(
- manager: Fsp2Manager,
- runtime: Fsp2Runtime,
- state: Fsp2WatchState,
+ manager: FspManager,
+ runtime: FspRuntime,
+ state: FspWatchState,
  stop: () => void
 ): void {
  if (runtime.document?.visibilityState !== "hidden") {
@@ -362,7 +362,7 @@ function handleVisibilityChange(
  });
 }
 
-function measureCost<T>(state: Fsp2WatchState, work: () => T): T {
+function measureCost<T>(state: FspWatchState, work: () => T): T {
  const start = state.now();
  const result = work();
  const end = state.now();
@@ -370,7 +370,7 @@ function measureCost<T>(state: Fsp2WatchState, work: () => T): T {
  return result;
 }
 
-function startInteractionListener(runtime: Fsp2Runtime, state: Fsp2WatchState): void {
+function startInteractionListener(runtime: FspRuntime, state: FspWatchState): void {
  if (!state.onInteract) {
   return;
  }
@@ -381,7 +381,7 @@ function startInteractionListener(runtime: Fsp2Runtime, state: Fsp2WatchState): 
  runtime.addEventListener("load", () => addInteractionListener(runtime, state.onInteract));
 }
 
-function addInteractionListener(runtime: Fsp2Runtime, listener?: () => void): void {
+function addInteractionListener(runtime: FspRuntime, listener?: () => void): void {
  if (!listener || !runtime.document?.addEventListener) {
   return;
  }
@@ -390,7 +390,7 @@ function addInteractionListener(runtime: Fsp2Runtime, listener?: () => void): vo
  runtime.document.addEventListener("touchmove", listener);
 }
 
-function stopWatch(runtime: Fsp2Runtime, state: Fsp2WatchState): void {
+function stopWatch(runtime: FspRuntime, state: FspWatchState): void {
  if (state.timer) {
   runtime.clearTimeout(state.timer);
   state.timer = undefined;
@@ -408,7 +408,7 @@ function stopWatch(runtime: Fsp2Runtime, state: Fsp2WatchState): void {
  stopClsStableCheck(state);
 }
 
-function createClsMetrics(state: Fsp2WatchState, timestamp: number): Fsp2ClsMetrics | undefined {
+function createClsMetrics(state: FspWatchState, timestamp: number): FspClsMetrics | undefined {
  if (!state.fspClsEnable) {
   return undefined;
  }
@@ -419,7 +419,7 @@ function createClsMetrics(state: Fsp2WatchState, timestamp: number): Fsp2ClsMetr
  };
 }
 
-function collectMutationElements(records: MutationRecord[], runtime: Fsp2Runtime, useIgnore: boolean, cache: Map<Element, boolean>): Element[] {
+function collectMutationElements(records: MutationRecord[], runtime: FspRuntime, useIgnore: boolean, cache: Map<Element, boolean>): Element[] {
  const elements = new Set<Element>();
  for (const record of records) {
   if (shouldSkipMutationTarget(record.target)) {
@@ -432,7 +432,7 @@ function collectMutationElements(records: MutationRecord[], runtime: Fsp2Runtime
 
 function collectRecordElements(
  record: MutationRecord,
- runtime: Fsp2Runtime,
+ runtime: FspRuntime,
  useIgnore: boolean,
  cache: Map<Element, boolean>,
  elements: Set<Element>
@@ -457,7 +457,7 @@ function collectRecordElements(
  }
 }
 
-function getLeafElements(element: Element, runtime: Fsp2Runtime, useIgnore: boolean, cache?: Map<Element, boolean>): Element[] {
+function getLeafElements(element: Element, runtime: FspRuntime, useIgnore: boolean, cache?: Map<Element, boolean>): Element[] {
  if (isValidElement(element, runtime, useIgnore, cache)) {
   return [element];
  }
@@ -469,7 +469,7 @@ function getLeafElements(element: Element, runtime: Fsp2Runtime, useIgnore: bool
  return leafElements;
 }
 
-function isValidElement(element: Element, runtime: Fsp2Runtime, useIgnore: boolean, cache?: Map<Element, boolean>): boolean {
+function isValidElement(element: Element, runtime: FspRuntime, useIgnore: boolean, cache?: Map<Element, boolean>): boolean {
  // 缓存避免重复 getComputedStyle
  const cached = cache?.get(element);
  if (typeof cached === "boolean") {

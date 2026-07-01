@@ -16,7 +16,6 @@ export interface PageConfig {
  delay: number;
  sample: number;
  points: string[];
- fstPerfAnalysis: boolean;
 }
 
 export interface SpaConfig {
@@ -98,7 +97,7 @@ export interface PerfFeatureConfig {
 
 export interface PerfConfig {
  enable: boolean;
- fsp2: PerfFeatureConfig;
+ fsp: PerfFeatureConfig;
  ird: PerfFeatureConfig;
  shr: PerfFeatureConfig;
  cache: {

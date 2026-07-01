@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import { CfgManager, EventBus, Logger } from "@monitor/core";
-import { calculateFsp2, createFsp2Plugin, Fsp2Manager } from "./index";
+import { calculateFsp, createFspPlugin, FspManager } from "./index";
 
 describe("秒开 2.0", () => {
  it("计算成功、超时和隐藏状态", () => {
-  expect(calculateFsp2({ startTime: 100, firstScreenTime: 260, now: 260, timeout: 500 })).toEqual({
+  expect(calculateFsp({ startTime: 100, firstScreenTime: 260, now: 260, timeout: 500 })).toEqual({
    status: "success",
    duration: 160
   });
-  expect(calculateFsp2({ startTime: 100, firstScreenTime: 900, now: 900, timeout: 500 }).status).toBe("timeout");
-  expect(calculateFsp2({ startTime: 100, now: 220, timeout: 500, hidden: true })).toEqual({
+  expect(calculateFsp({ startTime: 100, firstScreenTime: 900, now: 900, timeout: 500 }).status).toBe("timeout");
+  expect(calculateFsp({ startTime: 100, now: 220, timeout: 500, hidden: true })).toEqual({
    status: "hidden",
    duration: 120
   });
@@ -17,9 +17,9 @@ describe("秒开 2.0", () => {
 
  it("命中采样并经过 beforeSend 后上报", async () => {
   const send = vi.fn().mockResolvedValue(undefined);
-  const manager = new Fsp2Manager({
+  const manager = new FspManager({
    send,
-   endpoint: "/perf/fsp2",
+   endpoint: "/perf/fsp",
    timeout: 1000,
    now: () => 100,
    random: () => 0.2,
@@ -31,7 +31,7 @@ describe("秒开 2.0", () => {
 
   expect(send).toHaveBeenCalledTimes(1);
   expect(JSON.parse(send.mock.calls[0][0].body)).toEqual({
-   category: "fsp2_web",
+   category: "fsp_web",
    env: {},
    logs: [{ status: "success", duration: 260, page: "home" }]
   });
@@ -39,16 +39,16 @@ describe("秒开 2.0", () => {
 
  it("未命中采样或 beforeSend 返回 false 时不发送", async () => {
   const send = vi.fn();
-  await new Fsp2Manager({
+  await new FspManager({
    send,
-   endpoint: "/perf/fsp2",
+   endpoint: "/perf/fsp",
    sample: 0.1,
    random: () => 0.9
   }).report(100);
 
-  await new Fsp2Manager({
+  await new FspManager({
    send,
-   endpoint: "/perf/fsp2",
+   endpoint: "/perf/fsp",
    beforeSend: () => false
   }).report(100);
 
@@ -57,9 +57,9 @@ describe("秒开 2.0", () => {
 
  it("页面隐藏后上报 hidden 状态", async () => {
   const send = vi.fn().mockResolvedValue(undefined);
-  const manager = new Fsp2Manager({
+  const manager = new FspManager({
    send,
-   endpoint: "/perf/fsp2",
+   endpoint: "/perf/fsp",
    now: () => 100
   });
 
@@ -86,7 +86,7 @@ describe("秒开 2.0", () => {
    }),
    clearTimeout: vi.fn()
   };
-  const plugin = createFsp2Plugin({ runtime, now: () => now });
+  const plugin = createFspPlugin({ runtime, now: () => now });
 
   plugin.start(createContext(send));
   runtime.document.visibilityState = "hidden";
@@ -133,7 +133,7 @@ describe("秒开 2.0", () => {
    setTimeout: vi.fn(() => 1 as unknown as ReturnType<typeof setTimeout>),
    clearTimeout: vi.fn()
   };
-  const plugin = createFsp2Plugin({ runtime, now: () => now });
+  const plugin = createFspPlugin({ runtime, now: () => now });
 
   plugin.start(createContext(send));
   now = 220;
@@ -156,7 +156,7 @@ describe("秒开 2.0", () => {
   });
  });
 
- it("容器桥可用时使用 ffp.record 上报 FSP2 事件", async () => {
+ it("容器桥可用时使用 ffp.record 上报 FSP 事件", async () => {
   let mutationCallback: ((records: MutationRecord[]) => void) | undefined;
   let now = 100;
   const send = vi.fn().mockResolvedValue(undefined);
@@ -169,7 +169,7 @@ describe("秒开 2.0", () => {
     mutationCallback = callback;
    }
   });
-  const plugin = createFsp2Plugin({
+  const plugin = createFspPlugin({
    runtime,
    now: () => now,
    containerBridge: { "ffp.record": ffpRecord }
@@ -211,7 +211,7 @@ describe("秒开 2.0", () => {
    navigator: { userAgent: "demo-agent", onLine: false },
    performance: { timeOrigin: 90, timing: { navigationStart: 80 } }
   });
-  const plugin = createFsp2Plugin({
+  const plugin = createFspPlugin({
    runtime,
    now: () => 100,
    metadata: { sdkVersion: "1.0.0" }
@@ -239,7 +239,7 @@ describe("秒开 2.0", () => {
   const runtime = createDomRuntime({
    elementsFromPoint: () => [element]
   });
-  const plugin = createFsp2Plugin({ runtime, now: () => 100 });
+  const plugin = createFspPlugin({ runtime, now: () => 100 });
 
   plugin.start(createContext(send, { defer: false }));
 
@@ -267,7 +267,7 @@ describe("秒开 2.0", () => {
     return 1 as unknown as ReturnType<typeof setTimeout>;
    }
   });
-  const plugin = createFsp2Plugin({ runtime, now: () => now });
+  const plugin = createFspPlugin({ runtime, now: () => now });
 
   plugin.start(createContext(send));
   now = 1100;
@@ -295,7 +295,7 @@ describe("秒开 2.0", () => {
     }
    }
   });
-  const plugin = createFsp2Plugin({ runtime, now: () => 180 });
+  const plugin = createFspPlugin({ runtime, now: () => 180 });
 
   plugin.start(createContext(send));
   loadCallback?.();
@@ -321,7 +321,7 @@ describe("秒开 2.0", () => {
     return 1 as unknown as ReturnType<typeof setTimeout>;
    }
   });
-  const plugin = createFsp2Plugin({ runtime, now: () => now });
+  const plugin = createFspPlugin({ runtime, now: () => now });
 
   plugin.start(createContext(send, { useIgnore: true }));
   now = 220;
@@ -351,7 +351,7 @@ describe("秒开 2.0", () => {
     return 1 as unknown as ReturnType<typeof setTimeout>;
    }
   });
-  const plugin = createFsp2Plugin({ runtime, now: () => 100 });
+  const plugin = createFspPlugin({ runtime, now: () => 100 });
 
   plugin.start(createContext(send, { defer: true }));
   expect(send).not.toHaveBeenCalled();
@@ -370,7 +370,7 @@ describe("秒开 2.0", () => {
   });
   const runtime = createDomRuntime({ elementsFromPoint: undefined });
   (runtime.document as { elementsFromPoint?: (x: number, y: number) => Element[] }).elementsFromPoint = undefined;
-  const plugin = createFsp2Plugin({
+  const plugin = createFspPlugin({
    runtime,
    now: () => 100,
    containerBridge: { "ffp.record": ffpRecord }
@@ -400,7 +400,7 @@ describe("秒开 2.0", () => {
     mutationCallback = callback;
    }
   });
-  const plugin = createFsp2Plugin({
+  const plugin = createFspPlugin({
    runtime,
    now,
    containerBridge: { "ffp.record": ffpRecord }
@@ -432,7 +432,7 @@ describe("秒开 2.0", () => {
     return 2 as unknown as ReturnType<typeof setInterval>;
    }
   });
-  const plugin = createFsp2Plugin({ runtime, now: () => now });
+  const plugin = createFspPlugin({ runtime, now: () => now });
 
   plugin.start(createContext(send, { fspClsEnable: true }));
   now = 220;
@@ -456,11 +456,11 @@ describe("秒开 2.0", () => {
 
 });
 
-function createContext(send: ReturnType<typeof vi.fn>, fsp2: Record<string, unknown> = {}) {
+function createContext(send: ReturnType<typeof vi.fn>, fsp: Record<string, unknown> = {}) {
  return {
   cfgManager: new CfgManager({
    project: "demo",
-   perf: { fsp2: { endpoint: "/perf/fsp2", timeout: 1000, defer: false, fspClsEnable: false, ...fsp2 } }
+   perf: { fsp: { endpoint: "/perf/fsp", timeout: 1000, defer: false, fspClsEnable: false, ...fsp } }
   }),
   eventBus: new EventBus(),
   logger: new Logger(false),

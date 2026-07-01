@@ -13,7 +13,7 @@ const client = Monitor.start({
  error: { sample: 1 },
  perf: {
   enable: true,
-  fsp2: { enable: true, endpoint: "/perf/api/fsp2", sample: 1, timeout: 1000 },
+  fsp: { enable: true, endpoint: "/perf/api/fsp", sample: 1, timeout: 1000 },
   ird: { enable: true, endpoint: "/perf/api/ird", sample: 1 },
   shr: { enable: true, endpoint: "/perf/api/shr", sample: 1 }
  }

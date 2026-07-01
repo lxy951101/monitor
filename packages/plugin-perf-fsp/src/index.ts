@@ -1,6 +1,6 @@
 import { createPerfMetadata, type MonitorContext, type PerfMetadata, type PerfRunEnv, type Plugin } from "@monitor/core";
 import { PerfCache, sendWithPerfCache } from "@monitor/plugin-perf-cache";
-import { createFsp2BridgeEvent, createPerfCustomPayload, type PerfLog } from "@monitor/protocol";
+import { createFspBridgeEvent, createPerfCustomPayload, type PerfLog } from "@monitor/protocol";
 import {
  createContainerBridgeReporter,
  type BridgeLike,
@@ -8,53 +8,53 @@ import {
  type TransportRequest,
  type TransportResponse
 } from "@monitor/transport";
-import type { Fsp2DetectorSnapshot } from "./fsp2-detector";
-import { watchFsp2Runtime, type Fsp2Runtime } from "./fsp2-runtime";
+import type { FspDetectorSnapshot } from "./fsp-detector";
+import { watchFspRuntime, type FspRuntime } from "./fsp-runtime";
 
-export const packageName = "@monitor/plugin-perf-fsp2";
+export const packageName = "@monitor/plugin-perf-fsp";
 
 type SendFn = (request: TransportRequest) => Promise<TransportResponse | void>;
-export type Fsp2Status = "start" | "success" | "timeout" | "hidden" | "interact" | "notsupport" | "error";
-export type BeforeSendFsp2 = (metrics: Fsp2Metrics) => Fsp2Metrics | false | void;
+export type FspStatus = "start" | "success" | "timeout" | "hidden" | "interact" | "notsupport" | "error";
+export type BeforeSendFsp = (metrics: FspMetrics) => FspMetrics | false | void;
 
-export interface Fsp2Input {
+export interface FspInput {
  startTime: number;
  firstScreenTime?: number;
  now: number;
  timeout: number;
  hidden?: boolean;
- status?: Fsp2Status;
- detector?: Fsp2DetectorSnapshot;
+ status?: FspStatus;
+ detector?: FspDetectorSnapshot;
  mutationCount?: number;
- cls?: Fsp2ClsMetrics;
+ cls?: FspClsMetrics;
  costMs?: number;
 }
 
-export interface Fsp2ClsMetrics {
+export interface FspClsMetrics {
  pageLoadedTime: number;
  pageStable: boolean;
  loadedStableGap: number;
- calibrateEndType?: Fsp2Status;
+ calibrateEndType?: FspStatus;
  clsCycleLength?: number;
  clsCycleNum?: number;
  clsCycleThreshold?: number;
 }
 
-export interface Fsp2Metrics extends PerfLog {
- status: Fsp2Status;
+export interface FspMetrics extends PerfLog {
+ status: FspStatus;
  duration: number;
 }
 
-export interface Fsp2ReportInput {
- status?: Fsp2Status;
+export interface FspReportInput {
+ status?: FspStatus;
  timestamp?: number;
- detector?: Fsp2DetectorSnapshot;
+ detector?: FspDetectorSnapshot;
  mutationCount?: number;
- cls?: Fsp2ClsMetrics;
+ cls?: FspClsMetrics;
  costMs?: number;
 }
 
-export interface Fsp2ManagerOptions {
+export interface FspManagerOptions {
  send: SendFn;
  endpoint: string;
  project?: string;
@@ -78,17 +78,17 @@ export interface Fsp2ManagerOptions {
  cache?: PerfCache;
  random?: () => number;
  now?: () => number;
- beforeSend?: BeforeSendFsp2;
+ beforeSend?: BeforeSendFsp;
  containerBridge?: ContainerBridgeReporter;
 }
 
-export class Fsp2Manager {
- private readonly options: Fsp2ManagerOptions;
+export class FspManager {
+ private readonly options: FspManagerOptions;
  private readonly startTime: number;
  private hidden = false;
  private reported = false;
 
- constructor(options: Fsp2ManagerOptions) {
+ constructor(options: FspManagerOptions) {
   this.options = options;
   this.startTime = options.now?.() ?? Date.now();
  }
@@ -97,7 +97,7 @@ export class Fsp2Manager {
   this.hidden = true;
  }
 
- async report(input?: number | Fsp2ReportInput, detector?: Fsp2DetectorSnapshot, mutationCount = 0): Promise<void> {
+ async report(input?: number | FspReportInput, detector?: FspDetectorSnapshot, mutationCount = 0): Promise<void> {
   if (this.reported) {
    return;
   }
@@ -107,7 +107,7 @@ export class Fsp2Manager {
   }
 
   const reportInput = normalizeReportInput(input, detector, mutationCount);
-  const metrics = calculateFsp2({
+  const metrics = calculateFsp({
    startTime: this.startTime,
    firstScreenTime: reportInput.timestamp,
    now: this.options.now?.() ?? Date.now(),
@@ -128,17 +128,17 @@ export class Fsp2Manager {
   this.reported = true;
   const finalMetrics = next ?? metrics;
   if (this.options.containerBridge) {
-   await this.options.containerBridge.reportFsp2(this.createBridgeEvent(finalMetrics, reportInput));
+   await this.options.containerBridge.reportFsp(this.createBridgeEvent(finalMetrics, reportInput));
    return;
   }
   await sendWithPerfCache(this.createRequest(finalMetrics), this.options.send, this.options.cache);
  }
 
- async reportLifecycle(status: Fsp2Status, timestamp?: number, costMs = 0): Promise<void> {
+ async reportLifecycle(status: FspStatus, timestamp?: number, costMs = 0): Promise<void> {
   if (!this.options.containerBridge) {
    return;
   }
-  await this.options.containerBridge.reportFsp2(this.createBridgeEvent({
+  await this.options.containerBridge.reportFsp(this.createBridgeEvent({
    status,
    duration: Math.max(0, (timestamp ?? this.options.now?.() ?? Date.now()) - this.startTime),
    renderRate: 0,
@@ -148,13 +148,13 @@ export class Fsp2Manager {
   }, { status, timestamp, costMs }));
  }
 
- private createRequest(metrics: Fsp2Metrics): TransportRequest {
+ private createRequest(metrics: FspMetrics): TransportRequest {
   return {
    method: "POST",
    url: this.options.endpoint,
    timeout: this.options.timeout,
    body: JSON.stringify(createPerfCustomPayload({
-    category: "fsp2_web",
+    category: "fsp_web",
     env: this.createEnv(),
     metrics
    })),
@@ -164,8 +164,8 @@ export class Fsp2Manager {
   };
  }
 
- private createBridgeEvent(metrics: Fsp2Metrics, input: Fsp2ReportInput): Record<string, unknown> {
-  return createFsp2BridgeEvent({
+ private createBridgeEvent(metrics: FspMetrics, input: FspReportInput): Record<string, unknown> {
+  return createFspBridgeEvent({
    type: metrics.status,
    createMs: input.timestamp ?? this.options.now?.() ?? Date.now(),
    appId: this.options.project ?? "",
@@ -217,18 +217,18 @@ export class Fsp2Manager {
  }
 }
 
-export interface Fsp2PluginOptions {
- onReady?: (manager: Fsp2Manager) => void;
+export interface FspPluginOptions {
+ onReady?: (manager: FspManager) => void;
  cache?: PerfCache;
  random?: () => number;
  now?: () => number;
- beforeSend?: BeforeSendFsp2;
- runtime?: Fsp2Runtime;
+ beforeSend?: BeforeSendFsp;
+ runtime?: FspRuntime;
  containerBridge?: BridgeLike;
- metadata?: Fsp2Metadata;
+ metadata?: FspMetadata;
 }
 
-export interface Fsp2Metadata {
+export interface FspMetadata {
  pagePath?: string;
  pageUrl?: string;
  userAgent?: string;
@@ -245,39 +245,39 @@ export interface Fsp2Metadata {
  containerVersion?: string;
 }
 
-export function createFsp2Plugin(options: Fsp2PluginOptions = {}): Plugin {
- let manager: Fsp2Manager | undefined;
+export function createFspPlugin(options: FspPluginOptions = {}): Plugin {
+ let manager: FspManager | undefined;
  let stopWatch: (() => void) | undefined;
  return {
   name: packageName,
   start(context: MonitorContext) {
    const perf = context.cfgManager.getConfig("perf");
-   if (!perf.enable || !perf.fsp2.enable) {
+   if (!perf.enable || !perf.fsp.enable) {
     return;
    }
 
    const bridgeConfig = context.cfgManager.getConfig("bridge");
-   const metadata = resolveFsp2Metadata(options, context.cfgManager.getConfig("project"));
-   manager = new Fsp2Manager({
+   const metadata = resolveFspMetadata(options, context.cfgManager.getConfig("project"));
+   manager = new FspManager({
     send: context.transport.send.bind(context.transport),
-    endpoint: perf.fsp2.endpoint,
+    endpoint: perf.fsp.endpoint,
     project: context.cfgManager.getConfig("project"),
     ...metadata,
-    sample: perf.fsp2.sample,
-    timeout: perf.fsp2.timeout,
-    tags: perf.fsp2.customTags,
+    sample: perf.fsp.sample,
+    timeout: perf.fsp.timeout,
+    tags: perf.fsp.customTags,
     cache: options.cache,
     random: options.random,
     now: options.now,
     beforeSend: options.beforeSend,
-    containerBridge: createFsp2ContainerBridge(options, bridgeConfig.preferredMethod)
+    containerBridge: createFspContainerBridge(options, bridgeConfig.preferredMethod)
    });
    options.onReady?.(manager);
-   stopWatch = watchFsp2Runtime(manager, {
-    timeout: perf.fsp2.timeout,
-    useIgnore: Boolean(perf.fsp2.useIgnore),
-    fspClsEnable: perf.fsp2.fspClsEnable !== false,
-    defer: perf.fsp2.defer !== false,
+   stopWatch = watchFspRuntime(manager, {
+    timeout: perf.fsp.timeout,
+    useIgnore: Boolean(perf.fsp.useIgnore),
+    fspClsEnable: perf.fsp.fspClsEnable !== false,
+    defer: perf.fsp.defer !== false,
     runtime: options.runtime,
     now: options.now
    });
@@ -290,7 +290,7 @@ export function createFsp2Plugin(options: Fsp2PluginOptions = {}): Plugin {
  };
 }
 
-export function calculateFsp2(input: Fsp2Input): Fsp2Metrics {
+export function calculateFsp(input: FspInput): FspMetrics {
  const detectorMetrics = createDetectorMetrics(input.detector, input.mutationCount, input.cls, input.costMs);
  if (input.hidden) {
   return {
@@ -309,7 +309,7 @@ export function calculateFsp2(input: Fsp2Input): Fsp2Metrics {
  };
 }
 
-function normalizeReportInput(input?: number | Fsp2ReportInput, detector?: Fsp2DetectorSnapshot, mutationCount = 0): Fsp2ReportInput {
+function normalizeReportInput(input?: number | FspReportInput, detector?: FspDetectorSnapshot, mutationCount = 0): FspReportInput {
  if (typeof input === "number") {
   return { timestamp: input, detector, mutationCount };
  }
@@ -317,9 +317,9 @@ function normalizeReportInput(input?: number | Fsp2ReportInput, detector?: Fsp2D
 }
 
 function createDetectorMetrics(
- detector?: Fsp2DetectorSnapshot,
+ detector?: FspDetectorSnapshot,
  mutationCount = 0,
- cls?: Fsp2ClsMetrics,
+ cls?: FspClsMetrics,
  costMs?: number
 ): PerfLog {
  const metrics: PerfLog = {};
@@ -355,7 +355,7 @@ function compactRecord(input: Record<string, unknown>): Record<string, string | 
  return output;
 }
 
-function createFsp2ContainerBridge(options: Fsp2PluginOptions, preferredMethod: string): ContainerBridgeReporter | undefined {
+function createFspContainerBridge(options: FspPluginOptions, preferredMethod: string): ContainerBridgeReporter | undefined {
  const bridge = options.containerBridge ?? options.runtime?.containerBridge ?? getGlobalContainerBridge();
  if (!bridge) {
   return undefined;
@@ -366,16 +366,16 @@ function createFsp2ContainerBridge(options: Fsp2PluginOptions, preferredMethod: 
  });
 }
 
-function resolveFsp2Metadata(options: Fsp2PluginOptions, project: string): Fsp2Metadata {
+function resolveFspMetadata(options: FspPluginOptions, project: string): FspMetadata {
  const metadata = createPerfMetadata({
   project,
   runtime: options.runtime ?? getBrowserRuntimeMetadata(),
   ...options.metadata
  });
- return toFsp2Metadata(metadata, options.metadata);
+ return toFspMetadata(metadata, options.metadata);
 }
 
-function getBrowserRuntimeMetadata(): Fsp2Runtime | undefined {
+function getBrowserRuntimeMetadata(): FspRuntime | undefined {
  if (typeof window === "undefined") {
   return undefined;
  }
@@ -405,7 +405,7 @@ function getGlobalContainerBridge(): BridgeLike | undefined {
  return undefined;
 }
 
-function toFsp2Metadata(metadata: PerfMetadata, overrides?: Fsp2Metadata): Fsp2Metadata {
+function toFspMetadata(metadata: PerfMetadata, overrides?: FspMetadata): FspMetadata {
  return {
   pagePath: metadata.pagePath,
   pageUrl: metadata.pageUrl,

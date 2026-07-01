@@ -46,7 +46,7 @@ describe("createBridgeTransport", () => {
 });
 
 describe("createContainerBridgeReporter", () => {
- it("按平台桥名上报 FSP2 事件", async () => {
+ it("按平台桥名上报 FSP 事件", async () => {
   const ffpRecord = vi.fn((_event: unknown, callbacks: { success: (value: string) => void }) => {
    callbacks.success("ok");
   });
@@ -55,7 +55,7 @@ describe("createContainerBridgeReporter", () => {
    preferredMethod: "ffp.record"
   });
 
-  await expect(reporter.reportFsp2({ eType: "success", createMs: 100 })).resolves.toEqual({
+  await expect(reporter.reportFsp({ eType: "success", createMs: 100 })).resolves.toEqual({
    ok: true,
    status: 0,
    body: "ok"
@@ -78,7 +78,7 @@ describe("createContainerBridgeReporter", () => {
    preferredMethod: "fspRecord"
   });
 
-  await reporter.reportFsp2({ eType: "timeout", createMs: 120 });
+  await reporter.reportFsp({ eType: "timeout", createMs: 120 });
 
   expect(fspRecord).toHaveBeenCalledTimes(1);
  });
@@ -91,7 +91,7 @@ describe("createContainerBridgeReporter", () => {
    cacheStorage: storage
   });
 
-  await expect(reporterWithoutBridge.reportFsp2({ eType: "success", createMs: 100 })).resolves.toEqual({
+  await expect(reporterWithoutBridge.reportFsp({ eType: "success", createMs: 100 })).resolves.toEqual({
    ok: true,
    status: 0,
    cached: true
@@ -106,7 +106,7 @@ describe("createContainerBridgeReporter", () => {
    cacheStorage: storage
   });
 
-  await reporterWithBridge.reportFsp2({ eType: "timeout", createMs: 200 });
+  await reporterWithBridge.reportFsp({ eType: "timeout", createMs: 200 });
 
   expect(ffpRecord).toHaveBeenNthCalledWith(
    1,

@@ -149,11 +149,11 @@ describe("配置包", () => {
   const config = mergeMonitorConfig(base, { project: "demo" });
 
   expect(config.autoCatch).not.toBe(base.autoCatch);
-  expect(config.perf.fsp2).not.toBe(base.perf.fsp2);
+  expect(config.perf.fsp).not.toBe(base.perf.fsp);
 
-  config.perf.fsp2.customTags.env = "test";
+  config.perf.fsp.customTags.env = "test";
 
-  expect(base.perf.fsp2.customTags.env).toBeUndefined();
+  expect(base.perf.fsp.customTags.env).toBeUndefined();
  });
 
  it("非法 resourceReg 字符串抛出 SyntaxError", () => {

@@ -29,7 +29,7 @@ MonitorConfig
 ├── image:    { enable, maxSize, maxDuration, fileSize, filter }
 ├── error:    { enable, sample, maxQueueLength, ignoreList, maxRepeat, noScriptError, ... }
 ├── metric:   { enable, sample, tags }
-├── perf:     { fsp2, ird, shr, cache }
+├── perf:     { fsp, ird, shr, cache }
 ├── bridge:   { enable, preferredMethod }
 └── compat:   { monitorQueue }
 ```
@@ -42,7 +42,7 @@ MonitorConfig
 | `REPORT_BASE_URLS.production` | 生产环境上报域名 |
 | `REPORT_BASE_URLS.development` | 测试环境上报域名 |
 | `API_PATHS` | 各数据类型的 API 路径映射 |
-| `PERF_DEFAULT_ENDPOINTS` | Perf (FSP2/IRD/SHR) 默认端点 |
+| `PERF_DEFAULT_ENDPOINTS` | Perf (FSP/IRD/SHR) 默认端点 |
 
 ## 使用示例
 

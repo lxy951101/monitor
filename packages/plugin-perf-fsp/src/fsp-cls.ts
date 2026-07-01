@@ -1,6 +1,6 @@
-import type { Fsp2ViewportDetector } from "./fsp2-detector";
-import type { Fsp2Runtime } from "./fsp2-runtime";
-import type { Fsp2Manager } from "./index";
+import type { FspViewportDetector } from "./fsp-detector";
+import type { FspRuntime } from "./fsp-runtime";
+import type { FspManager } from "./index";
 
 export interface RectLike {
  top: number;
@@ -14,10 +14,10 @@ interface ElementWithRect {
  rect: RectLike;
 }
 
-export interface Fsp2ClsRuntimeState {
- runtime: Fsp2Runtime;
- detector?: Fsp2ViewportDetector;
- clsObserver?: InstanceType<NonNullable<Fsp2Runtime["MutationObserver"]>>;
+export interface FspClsRuntimeState {
+ runtime: FspRuntime;
+ detector?: FspViewportDetector;
+ clsObserver?: InstanceType<NonNullable<FspRuntime["MutationObserver"]>>;
  clsTimer?: ReturnType<typeof setInterval>;
  mutationCount: number;
  pageLoadedTime: number;
@@ -33,8 +33,8 @@ export interface Fsp2ClsRuntimeState {
 }
 
 export function startClsStableCheck(
- manager: Fsp2Manager,
- state: Fsp2ClsRuntimeState,
+ manager: FspManager,
+ state: FspClsRuntimeState,
  timestamp: number
 ): void {
  const runtime = state.runtime;
@@ -62,7 +62,7 @@ export function startClsStableCheck(
  state.clsTimer = runtime.setInterval(() => handleClsCycle(manager, state), 200);
 }
 
-function handleClsCycle(manager: Fsp2Manager, state: Fsp2ClsRuntimeState): void {
+function handleClsCycle(manager: FspManager, state: FspClsRuntimeState): void {
  state.clsCycleCount += 1;
  state.totalClsCycleCount += 1;
  if (state.cls >= 0.02) {
@@ -80,13 +80,13 @@ function handleClsCycle(manager: Fsp2Manager, state: Fsp2ClsRuntimeState): void 
  state.cls = 0;
 }
 
-function resetClsCycle(state: Fsp2ClsRuntimeState): void {
+function resetClsCycle(state: FspClsRuntimeState): void {
  state.cls = 0;
  state.clsCycleCount = 0;
  state.clsCycleStartTime = state.now();
 }
 
-function reportStableSuccess(manager: Fsp2Manager, state: Fsp2ClsRuntimeState, timestamp: number): void {
+function reportStableSuccess(manager: FspManager, state: FspClsRuntimeState, timestamp: number): void {
  void manager.report({
   status: "success",
   timestamp,
@@ -105,7 +105,7 @@ function reportStableSuccess(manager: Fsp2Manager, state: Fsp2ClsRuntimeState, t
  });
 }
 
-export function stopClsStableCheck(state: Fsp2ClsRuntimeState): void {
+export function stopClsStableCheck(state: FspClsRuntimeState): void {
  if (state.clsTimer && state.runtime.clearInterval) {
   state.runtime.clearInterval(state.clsTimer);
   state.clsTimer = undefined;
@@ -114,7 +114,7 @@ export function stopClsStableCheck(state: Fsp2ClsRuntimeState): void {
  state.clsObserver = undefined;
 }
 
-function collectClsRecords(records: MutationRecord[], state: Fsp2ClsRuntimeState, runtime: Fsp2Runtime): void {
+function collectClsRecords(records: MutationRecord[], state: FspClsRuntimeState, runtime: FspRuntime): void {
  for (const record of records) {
   if (record.type === "childList") {
    for (const node of Array.from(record.addedNodes ?? [])) {
@@ -134,14 +134,14 @@ function collectClsRecords(records: MutationRecord[], state: Fsp2ClsRuntimeState
  }
 }
 
-function pushClsElement(state: Fsp2ClsRuntimeState, runtime: Fsp2Runtime, element: Element): void {
+function pushClsElement(state: FspClsRuntimeState, runtime: FspRuntime, element: Element): void {
  const rect = toRectLike(element.getBoundingClientRect());
  if (isInViewport(runtime, rect)) {
   state.clsObserverNodesRects.push({ element, rect });
  }
 }
 
-function compareNodePositionChange(state: Fsp2ClsRuntimeState): number {
+function compareNodePositionChange(state: FspClsRuntimeState): number {
  let distance = 0;
  for (const elementWithRect of state.clsObserverNodesRects) {
   distance = Math.max(distance, clsNodePositionChange(state, elementWithRect));
@@ -149,7 +149,7 @@ function compareNodePositionChange(state: Fsp2ClsRuntimeState): number {
  return distance;
 }
 
-function clsNodePositionChange(state: Fsp2ClsRuntimeState, elementWithRect: ElementWithRect): number {
+function clsNodePositionChange(state: FspClsRuntimeState, elementWithRect: ElementWithRect): number {
  const { element, rect } = elementWithRect;
  const lastRect = state.elementRects.get(element) ?? rect;
  let distance = 0;
@@ -167,7 +167,7 @@ function clsNodePositionChange(state: Fsp2ClsRuntimeState, elementWithRect: Elem
  return distance;
 }
 
-function calculateClsScore(state: Fsp2ClsRuntimeState, runtime: Fsp2Runtime, distance: number): void {
+function calculateClsScore(state: FspClsRuntimeState, runtime: FspRuntime, distance: number): void {
  if (state.allMovedNodesRects.length === 0 || distance <= 0) {
   state.allMovedNodesRects = [];
   return;
@@ -183,7 +183,7 @@ function calculateClsScore(state: Fsp2ClsRuntimeState, runtime: Fsp2Runtime, dis
  state.allMovedNodesRects = [];
 }
 
-function viewportIntersectionArea(runtime: Fsp2Runtime, rect: RectLike): number {
+function viewportIntersectionArea(runtime: FspRuntime, rect: RectLike): number {
  const intersection = {
   top: Math.max(rect.top, 0),
   right: Math.min(rect.right, viewportWidth(runtime)),
@@ -196,11 +196,11 @@ function viewportIntersectionArea(runtime: Fsp2Runtime, rect: RectLike): number 
  return (intersection.right - intersection.left) * (intersection.bottom - intersection.top);
 }
 
-function isInViewport(runtime: Fsp2Runtime, rect: RectLike): boolean {
+function isInViewport(runtime: FspRuntime, rect: RectLike): boolean {
  return viewportIntersectionArea(runtime, rect) > 0;
 }
 
-function rectsAreEqual(left: RectLike, right: RectLike, runtime: Fsp2Runtime): boolean {
+function rectsAreEqual(left: RectLike, right: RectLike, runtime: FspRuntime): boolean {
  return equalOrPastStart(left.left, right.left)
   && equalOrPastStart(left.top, right.top)
   && equalOrPastEnd(left.right, right.right, viewportWidth(runtime))
@@ -215,16 +215,16 @@ function equalOrPastEnd(left: number, right: number, viewportSize: number): bool
  return left === right || (left >= viewportSize && right >= viewportSize);
 }
 
-function viewportArea(runtime: Fsp2Runtime): number {
+function viewportArea(runtime: FspRuntime): number {
  return viewportWidth(runtime) * viewportHeight(runtime);
 }
 
 // CLS 计算使用 clientWidth/clientHeight（不含滚动条），与检测器初始化不同
-function viewportWidth(runtime: Fsp2Runtime): number {
+function viewportWidth(runtime: FspRuntime): number {
  return runtime.document?.documentElement?.clientWidth || runtime.innerWidth || 1;
 }
 
-function viewportHeight(runtime: Fsp2Runtime): number {
+function viewportHeight(runtime: FspRuntime): number {
  return runtime.document?.documentElement?.clientHeight || runtime.innerHeight || 1;
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { CfgManager, EventBus, Logger } from "@monitor/core";
-import { createFsp2Plugin } from "./index";
+import { createFspPlugin } from "./index";
 
 describe("秒开 2.0 容器桥补充字段", () => {
  it("CLS 成功事件携带周期细节字段", async () => {
@@ -21,7 +21,7 @@ describe("秒开 2.0 容器桥补充字段", () => {
     return 2 as unknown as ReturnType<typeof setInterval>;
    }
   });
-  const plugin = createFsp2Plugin({
+  const plugin = createFspPlugin({
    runtime,
    now: () => now,
    containerBridge: { "ffp.record": ffpRecord }
@@ -61,7 +61,7 @@ describe("秒开 2.0 容器桥补充字段", () => {
   runtime.getComputedStyle.mockImplementation(() => {
    throw new Error("style failed");
   });
-  const plugin = createFsp2Plugin({
+  const plugin = createFspPlugin({
    runtime,
    now: () => 220,
    containerBridge: { "ffp.record": ffpRecord }
@@ -76,11 +76,11 @@ describe("秒开 2.0 容器桥补充字段", () => {
  });
 });
 
-function createContext(send: ReturnType<typeof vi.fn>, fsp2: Record<string, unknown> = {}) {
+function createContext(send: ReturnType<typeof vi.fn>, fsp: Record<string, unknown> = {}) {
  return {
   cfgManager: new CfgManager({
    project: "demo",
-   perf: { fsp2: { endpoint: "/perf/fsp2", timeout: 1000, defer: false, fspClsEnable: false, ...fsp2 } }
+   perf: { fsp: { endpoint: "/perf/fsp", timeout: 1000, defer: false, fspClsEnable: false, ...fsp } }
   }),
   eventBus: new EventBus(),
   logger: new Logger(false),

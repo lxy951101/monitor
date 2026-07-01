@@ -23,7 +23,7 @@ monitor/
 │   ├── plugin-metric/   # 自定义指标采集
 │   ├── plugin-resource/ # 资源/Ajax/Fetch 监控
 │   ├── plugin-page/     # Navigation Timing + 首屏（FST）检测
-│   ├── plugin-perf-fsp2/# 秒开 2.0（首屏填充率）
+│   ├── plugin-perf-fsp/# 秒开（首屏填充率）
 │   ├── plugin-perf-ird/ # 交互响应延迟
 │   ├── plugin-perf-shr/ # 滚动帧率与掉帧
 │   └── plugin-perf-cache/# 性能数据离线缓存
@@ -166,7 +166,7 @@ flowchart TD
 | 资源 Protobuf (prod) | POST | `application/octet-stream` | **自研 Protobuf 编码器** |
 | 页面速度 | GET | — | 管道分隔的 27 点数组 |
 | 自定义指标 | POST | `application/json` | JSON |
-| 性能指标 (FSP2/IRD/SHR) | POST | `application/json` | JSON PerfLogPayload |
+| 性能指标 (FSP/IRD/SHR) | POST | `application/json` | JSON PerfLogPayload |
 
 ### 3.2 自研 Protobuf 编码器（无第三方依赖）
 
@@ -373,11 +373,11 @@ window.XMLHttpRequest = PatchedXHR;  // 整个构造函数替换
 - 加载耗时超出 `maxDuration` → `IMAGE_DURATION_EXCEED`
 - 触发后路由到 `ErrorManager.reportSystemWarn()`
 
-### 6.3 秒开 2.0（FSP2）— 视口填充率检测
+### 6.3 秒开（FSP）— 视口填充率检测
 
-**核心算法：`Fsp2ViewportDetector`**
+**核心算法：`FspViewportDetector`**
 
-将视口划分为 **3 行 × 6 列 = 18 个格子**：
+将视口划分为 **3 列 × 6 行 = 18 个格子**：
 
 ```
 ┌───┬───┬───┬───┬───┬───┐
@@ -394,7 +394,7 @@ window.XMLHttpRequest = PatchedXHR;  // 整个构造函数替换
 - **超时兜底**：`timeout`（默认 10s）后强制结束，使用宽松检查
 - **元素过滤**：`shouldIgnoreElement()` 跳过不可见（`display:none`/`visibility:hidden`/`opacity:0`）和零尺寸元素，结果缓存在 `__fspIgnored` 自定义属性上
 
-**CLS 稳定性校准（FSP2-CLS）：**
+**CLS 稳定性校准（FSP-CLS）：**
 
 秒开成功后，启动额外的 CLS 观察：
 - 每 200ms 计算一个周期内的累计布局偏移 `cls >= 0.02`
@@ -481,11 +481,11 @@ frameDropRate = Σ max(0, frameGap - 16.7) / totalDuration × 1000
 
 ### 6.8 性能离线缓存（PerfCache）— 失败优雅降级
 
-三个性能插件（FSP2、IRD、SHR）共享一个 `PerfCache` 实例：
+三个性能插件（FSP、IRD、SHR）共享一个 `PerfCache` 实例：
 
 ```
 PerfCache (localStorage key: "__perf_cache")
-   ├── fsp2 上报失败 → cache.add()
+   ├── fsp 上报失败 → cache.add()
    ├── ird 上报失败  → cache.add()
    └── shr 上报失败  → cache.add()
    
@@ -580,7 +580,7 @@ const doubleWrapped = client.wrap(wrapped); // → 返回 wrapped（不重复包
 | 可本地验证 | 需真实环境 |
 |-----------|-----------|
 | 浏览器 Web 指标、XHR/Fetch、资源错误、PV | 容器 Bridge 模式 |
-| Metric、Perf (FSP2/IRD/SHR) | 远程配置下发 |
+| Metric、Perf (FSP/IRD/SHR) | 远程配置下发 |
 | 事件捕获、采样逻辑 | — |
 
 ---
@@ -621,7 +621,7 @@ const doubleWrapped = client.wrap(wrapped); // → 返回 wrapped（不重复包
 
 1. **API 采样读/写不一致**：`getSampleValue("api")` 读 `resource.sampleApi`，`applySampling` 写 `api.sample`，可能导致远程下发采样不生效
 2. **History Watcher 副作用**：`ensureHistoryWatcher` 会突变传入的 `env.history` 对象，未做防御性复制
-3. **PerfCache 三插件共用一 Key**：FSP2/IRD/SHR 共用 `__perf_cache`，缓存条目格式需保持一致
+3. **PerfCache 三插件共用一 Key**：FSP/IRD/SHR 共用 `__perf_cache`，缓存条目格式需保持一致
 4. **配置端点测试与源码不一致**：`config.test.ts` 中的 API 路径断言值与 `endpoints.ts` 源码不匹配
 5. **`cloneValue` 非完整深克隆**：Set/Map/Date/RegExp 等非普通对象通过引用保留
 6. **Logger.setDevMode 不同步**：通过其他路径（如远程配置）修改 devMode 时 Logger 不会自动同步

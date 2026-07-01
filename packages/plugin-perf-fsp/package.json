@@ -1,5 +1,5 @@
 {
-  "name": "@monitor/plugin-perf-fsp2",
+  "name": "@monitor/plugin-perf-fsp",
   "version": "0.0.0",
   "type": "module",
   "main": "dist/index.cjs",

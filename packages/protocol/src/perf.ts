@@ -22,9 +22,9 @@ export interface CreatePerfCustomPayloadInput {
  metrics: PerfLog;
 }
 
-export type Fsp2BridgeEventType = "start" | "success" | "interact" | "timeout" | "notsupport" | "error" | "hidden";
+export type FspBridgeEventType = "start" | "success" | "interact" | "timeout" | "notsupport" | "error" | "hidden";
 
-export interface Fsp2BridgeMetrics {
+export interface FspBridgeMetrics {
  reachBottom: boolean;
  renderRate: number;
  mutationCount: number;
@@ -38,8 +38,8 @@ export interface Fsp2BridgeMetrics {
  loadedStableGap?: number;
 }
 
-export interface CreateFsp2BridgeEventInput {
- type: Fsp2BridgeEventType;
+export interface CreateFspBridgeEventInput {
+ type: FspBridgeEventType;
  createMs: number;
  appId: string;
  pagePath?: string;
@@ -50,11 +50,11 @@ export interface CreateFsp2BridgeEventInput {
  isOffline?: boolean;
  sampleRate?: number;
  tags?: PerfEnv;
- metrics: Fsp2BridgeMetrics;
+ metrics: FspBridgeMetrics;
 }
 
-export interface Fsp2BridgeEvent extends PerfLog {
- eType: Fsp2BridgeEventType;
+export interface FspBridgeEvent extends PerfLog {
+ eType: FspBridgeEventType;
  createMs: number;
  appId: string;
  reachBottom: "reached" | "notReached";
@@ -79,8 +79,8 @@ export function createPerfCustomPayload(input: CreatePerfCustomPayloadInput): Pe
  };
 }
 
-export function createFsp2BridgeEvent(input: CreateFsp2BridgeEventInput): Fsp2BridgeEvent {
- const event: Fsp2BridgeEvent = {
+export function createFspBridgeEvent(input: CreateFspBridgeEventInput): FspBridgeEvent {
+ const event: FspBridgeEvent = {
   ...(input.tags ?? {}),
   eType: input.type,
   createMs: input.createMs,

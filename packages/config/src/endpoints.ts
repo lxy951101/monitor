@@ -18,7 +18,7 @@ export const API_PATHS = {
 } as const;
 
 export const PERF_DEFAULT_ENDPOINTS = {
- fsp2: "/api/fsp2",
+ fsp: "/api/fsp",
  ird: "/api/ird",
  shr: "/api/shr"
 } as const;

@@ -29,8 +29,7 @@ export function createDefaultConfig(): MonitorConfig {
    enable: true,
    delay: 0,
    sample: 1,
-   points: [],
-   fstPerfAnalysis: true
+   points: []
   },
   SPA: {
    enable: true,
@@ -112,10 +111,10 @@ export function createDefaultConfig(): MonitorConfig {
 function createDefaultPerfConfig(): MonitorConfig["perf"] {
  return {
   enable: true,
-  fsp2: {
+  fsp: {
    enable: true,
    sample: 1,
-   endpoint: PERF_DEFAULT_ENDPOINTS.fsp2,
+   endpoint: PERF_DEFAULT_ENDPOINTS.fsp,
    timeout: 10000,
    debug: false,
    useIgnore: false,

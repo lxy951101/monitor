@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createFsp2BridgeEvent, createPerfCustomPayload, createPerfLogPayload } from "./index";
+import { createFspBridgeEvent, createPerfCustomPayload, createPerfLogPayload } from "./index";
 
 describe("Perf 协议", () => {
  it("生成 category/env/logs 结构", () => {
@@ -25,8 +25,8 @@ describe("Perf 协议", () => {
   expect(payload.logs[0]).toEqual({ firstScreen: 88 });
  });
 
- it("生成容器 FSP2 桥事件结构", () => {
-  const event = createFsp2BridgeEvent({
+ it("生成容器 FSP 桥事件结构", () => {
+  const event = createFspBridgeEvent({
    type: "success",
    createMs: 260,
    appId: "demo",

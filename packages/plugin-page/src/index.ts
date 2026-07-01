@@ -50,7 +50,7 @@ export function createPagePlugin(
   stop() {
    manager = undefined;
   },
-  /** 暴露 PageManager 实例供外部调用（如手动 addPoint、reportRouteFst 等）。 */
+  /** 暴露 PageManager 实例供外部调用。 */
   get manager() {
    return manager;
   },
@@ -75,8 +75,5 @@ function getRuntimeTiming(): NavigationTimingLike | undefined {
   .timing;
 }
 
-export * from "./first-screen";
-export * from "./fst-analysis";
 export * from "./navigation-timing";
 export * from "./page-manager";
-export * from "./route-fst";

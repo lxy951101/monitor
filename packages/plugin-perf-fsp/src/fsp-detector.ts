@@ -1,9 +1,9 @@
-export interface Fsp2Point {
+export interface FspPoint {
   x: number;
   y: number;
 }
 
-export interface Fsp2Cube {
+export interface FspCube {
   left: number;
   top: number;
   right: number;
@@ -11,7 +11,7 @@ export interface Fsp2Cube {
   filled: boolean;
 }
 
-export interface Fsp2DetectorSnapshot {
+export interface FspDetectorSnapshot {
   filledCount: number;
   fillRateDone: boolean;
   reachBottomDone: boolean;
@@ -26,10 +26,10 @@ const FILL_CUBE_NUM = 17;
 const BOTTOM_SIZE = 50;
 const BOTTOM_POINT_NUM = 9;
 
-export class Fsp2ViewportDetector {
+export class FspViewportDetector {
   private readonly viewportWidth: number;
   private readonly viewportHeight: number;
-  private readonly cubes: Fsp2Cube[];
+  private readonly cubes: FspCube[];
   private fillRateDone = false;
   private reachBottomDone = false;
   private readyTime: number | undefined;
@@ -63,7 +63,7 @@ export class Fsp2ViewportDetector {
     return false;
   }
 
-  checkInitialPoints(isValidPoint: (point: Fsp2Point) => boolean, timestamp: number): boolean {
+  checkInitialPoints(isValidPoint: (point: FspPoint) => boolean, timestamp: number): boolean {
     let filledCount = 0;
     for (const cube of this.cubes) {
       const filled = getCubeInnerPoints(cube).some(isValidPoint);
@@ -111,14 +111,14 @@ export class Fsp2ViewportDetector {
     return this.readyTime ?? fallback;
   }
 
-  checkPointElements(points: Fsp2Point[], elementFromPoint: (point: Fsp2Point) => Element | undefined): boolean {
+  checkPointElements(points: FspPoint[], elementFromPoint: (point: FspPoint) => Element | undefined): boolean {
     return points.some((point) => {
       const element = elementFromPoint(point);
       return Boolean(element);
     });
   }
 
-  snapshot(): Fsp2DetectorSnapshot {
+  snapshot(): FspDetectorSnapshot {
     const filledCount = this.filledCount();
     return {
       filledCount,
@@ -153,10 +153,10 @@ export class Fsp2ViewportDetector {
   }
 }
 
-export function createViewportCubes(viewportWidth: number, viewportHeight: number): Fsp2Cube[] {
+export function createViewportCubes(viewportWidth: number, viewportHeight: number): FspCube[] {
   const cubeWidth = viewportWidth / X_CUBE_NUM;
   const cubeHeight = viewportHeight / Y_CUBE_NUM;
-  const cubes: Fsp2Cube[] = [];
+  const cubes: FspCube[] = [];
 
   for (let xIndex = 0; xIndex < X_CUBE_NUM; xIndex += 1) {
     for (let yIndex = 0; yIndex < Y_CUBE_NUM; yIndex += 1) {
@@ -173,11 +173,11 @@ export function createViewportCubes(viewportWidth: number, viewportHeight: numbe
   return cubes;
 }
 
-export function getViewportBottomPoints(viewportWidth: number, viewportHeight: number): Fsp2Point[] {
+export function getViewportBottomPoints(viewportWidth: number, viewportHeight: number): FspPoint[] {
   const perWidth = viewportWidth / (BOTTOM_POINT_NUM + 1);
   const perHeight = BOTTOM_SIZE / (BOTTOM_POINT_NUM + 1);
   const upperHeight = viewportHeight - BOTTOM_SIZE;
-  const points: Fsp2Point[] = [];
+  const points: FspPoint[] = [];
 
   for (let index = 0; index < BOTTOM_POINT_NUM; index += 1) {
     points.push({
@@ -189,14 +189,14 @@ export function getViewportBottomPoints(viewportWidth: number, viewportHeight: n
   return points;
 }
 
-export function getCubeInnerPoints(cube: Pick<Fsp2Cube, "left" | "top" | "right" | "bottom">): Fsp2Point[] {
+export function getCubeInnerPoints(cube: Pick<FspCube, "left" | "top" | "right" | "bottom">): FspPoint[] {
   const cubeWidth = cube.right - cube.left;
   const cubeHeight = cube.bottom - cube.top;
   const xPointCount = 3;
   const yPointCount = 3;
   const unitWidth = cubeWidth / (xPointCount + 1);
   const unitHeight = cubeHeight / (yPointCount + 1);
-  const points: Fsp2Point[] = [];
+  const points: FspPoint[] = [];
 
   for (let xIndex = 0; xIndex < xPointCount; xIndex += 1) {
     for (let yIndex = 0; yIndex < yPointCount; yIndex += 1) {
@@ -210,11 +210,11 @@ export function getCubeInnerPoints(cube: Pick<Fsp2Cube, "left" | "top" | "right"
   return points;
 }
 
-function intersects(rect: Fsp2Cube, cube: Fsp2Cube): boolean {
+function intersects(rect: FspCube, cube: FspCube): boolean {
   return rect.left < cube.right && rect.right > cube.left && rect.top < cube.bottom && rect.bottom > cube.top;
 }
 
-function normalizeRect(rect: DOMRect | ClientRect): Fsp2Cube {
+function normalizeRect(rect: DOMRect | ClientRect): FspCube {
   return {
     left: rect.left,
     top: rect.top,

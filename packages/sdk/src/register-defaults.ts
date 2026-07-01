@@ -1,7 +1,7 @@
 import { createMetricPlugin, type MetricManager } from "@monitor/plugin-metric";
 import { createPagePlugin } from "@monitor/plugin-page";
 import { PerfCache } from "@monitor/plugin-perf-cache";
-import { createFsp2Plugin, type Fsp2Manager } from "@monitor/plugin-perf-fsp2";
+import { createFspPlugin, type FspManager } from "@monitor/plugin-perf-fsp";
 import { createIrdPlugin } from "@monitor/plugin-perf-ird";
 import { createShrPlugin } from "@monitor/plugin-perf-shr";
 import { createPvPlugin, type PvManager } from "@monitor/plugin-pv";
@@ -12,7 +12,7 @@ import type { MonitorClient } from "./monitor-client";
 export interface DefaultPluginRefs {
  metric?: MetricManager;
  pv?: PvManager;
- fsp2?: Fsp2Manager;
+ fsp?: FspManager;
 }
 
 export function registerDefaultPlugins(client: MonitorClient): DefaultPluginRefs {
@@ -31,8 +31,8 @@ export function registerDefaultPlugins(client: MonitorClient): DefaultPluginRefs
    refs.metric = manager;
    client.attachMetricManager(manager);
   } }))
-  .use(createFsp2Plugin({ cache: perfCache, onReady: (manager) => {
-   refs.fsp2 = manager;
+  .use(createFspPlugin({ cache: perfCache, onReady: (manager) => {
+   refs.fsp = manager;
   } }))
   .use(createIrdPlugin({ cache: perfCache }))
   .use(createShrPlugin({ cache: perfCache }));

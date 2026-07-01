@@ -17,7 +17,7 @@
     "@monitor/plugin-page": "workspace:*",
     "@monitor/plugin-pv": "workspace:*",
     "@monitor/plugin-metric": "workspace:*",
-    "@monitor/plugin-perf-fsp2": "workspace:*",
+    "@monitor/plugin-perf-fsp": "workspace:*",
     "@monitor/plugin-perf-ird": "workspace:*",
     "@monitor/plugin-perf-shr": "workspace:*",
     "@monitor/plugin-perf-cache": "workspace:*",

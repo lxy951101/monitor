@@ -18,7 +18,7 @@
 ├──────────┬───────────────────────────┤
 │  Plugin  │  registerDefaultPlugins   │
 │  System  │  (error/page/resource/pv  │
-│  (core)  │   metric/fsp2/ird/shr)    │
+│  (core)  │   metric/fsp/ird/shr)    │
 ├──────────┴───────────────────────────┤
 │  Transport · Config · EventBus       │
 │  (from @monitor/core/transport)      │

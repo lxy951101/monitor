@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Fsp2ViewportDetector, createViewportCubes, getCubeInnerPoints, getViewportBottomPoints } from "./fsp2-detector";
+import { FspViewportDetector, createViewportCubes, getCubeInnerPoints, getViewportBottomPoints } from "./fsp-detector";
 
 describe("秒开 2.0 视口检测", () => {
  it("将视口拆成 3x6 共 18 个宫格", () => {
@@ -23,7 +23,7 @@ describe("秒开 2.0 视口检测", () => {
  });
 
  it("18 宫格填充达到 17 个并触底后才完成首屏", () => {
-  const detector = new Fsp2ViewportDetector(300, 600);
+  const detector = new FspViewportDetector(300, 600);
 
   expect(detector.checkElements([rectElement(0, 0, 300, 549)], 120)).toBe(false);
   expect(detector.snapshot()).toMatchObject({
@@ -42,7 +42,7 @@ describe("秒开 2.0 视口检测", () => {
  });
 
  it("元素只占 16 个宫格时不满足 90% 填充", () => {
-  const detector = new Fsp2ViewportDetector(300, 600);
+  const detector = new FspViewportDetector(300, 600);
 
   expect(detector.checkElements([
    rectElement(0, 0, 200, 600),

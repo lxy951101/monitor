@@ -49,7 +49,7 @@ packages/
   plugin-metric/
   plugin-logan/
   plugin-horn/
-  plugin-perf-fsp2/
+  plugin-perf-fsp/
   plugin-perf-ird/
   plugin-perf-shr/
   plugin-perf-cache/
@@ -855,7 +855,7 @@ git commit -m "feat: 实现 Horn 和 Logan 插件"
 ## 任务 12：实现 Perf 插件组
 
 **文件：**
-- 创建：`packages/plugin-perf-fsp2/src/*.ts`
+- 创建：`packages/plugin-perf-fsp/src/*.ts`
 - 创建：`packages/plugin-perf-ird/src/*.ts`
 - 创建：`packages/plugin-perf-shr/src/*.ts`
 - 创建：`packages/plugin-perf-cache/src/*.ts`
@@ -897,7 +897,7 @@ describe("交互响应耗时", () => {
 运行：
 
 ```bash
-pnpm --filter @monitor/plugin-perf-fsp2 test
+pnpm --filter @monitor/plugin-perf-fsp test
 pnpm --filter @monitor/plugin-perf-ird test
 pnpm --filter @monitor/plugin-perf-shr test
 pnpm --filter @monitor/plugin-perf-cache test
@@ -909,7 +909,7 @@ pnpm --filter "@monitor/plugin-perf-*" typecheck
 - [ ] **步骤 7：提交**
 
 ```bash
-git add packages/plugin-perf-fsp2 packages/plugin-perf-ird packages/plugin-perf-shr packages/plugin-perf-cache
+git add packages/plugin-perf-fsp packages/plugin-perf-ird packages/plugin-perf-shr packages/plugin-perf-cache
 git commit -m "feat: 实现 Perf 指标插件组"
 ```
 

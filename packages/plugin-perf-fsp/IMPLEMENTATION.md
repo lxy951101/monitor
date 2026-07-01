@@ -1,8 +1,8 @@
-# FSP2（秒开 2.0）实现原理
+# FSP（秒开）实现原理
 
 ## 概述
 
-FSP2（First Screen Paint 2.0，即"秒开 2.0"）是一种**首屏渲染完成检测算法**。与传统的基于固定时间点（如 `DOMContentLoaded`、`load` 事件）的检测方式不同，FSP2 通过**视口内容填充率**和**视觉触底**两个维度，动态判断页面首屏内容是否渲染完毕。
+FSP（First Screen Paint，即"秒开"）是一种**首屏渲染完成检测算法**。与传统的基于固定时间点（如 `DOMContentLoaded`、`load` 事件）的检测方式不同，FSP 通过**视口内容填充率**和**视觉触底**两个维度，动态判断页面首屏内容是否渲染完毕。
 
 ---
 
@@ -230,7 +230,7 @@ flowchart TD
 
 ## 与 的差异及对齐
 
-| 维度 | | plugin-perf-fsp2 | 对齐情况 |
+| 维度 | | plugin-perf-fsp | 对齐情况 |
 |------|--------|------------------|----------|
 | 初始检测阈值 | `> 17`（需 18/18） | `> 17`（需 18/18） | ✅ 已对齐 |
 | 动态检测阈值 | `>= 17` | `>= 17` | ✅ 一致 |
@@ -248,20 +248,20 @@ flowchart TD
 ```mermaid
 flowchart LR
     subgraph SRC["src/"]
-        IDX["index.ts\n插件入口\nFsp2Manager\n上报逻辑"]
-        RT["fsp2-runtime.ts\n运行时调度\nMO 监听 / 定时器\n元素收集 / 交互检测"]
-        DET["fsp2-detector.ts\n纯算法层\n18 宫格 / 填充率\n触底 / 点采样"]
-        CLS["fsp2-cls.ts\nCLS 稳定性校准\n位移检测 / 分数计算"]
+        IDX["index.ts\n插件入口\nFspManager\n上报逻辑"]
+        RT["fsp-runtime.ts\n运行时调度\nMO 监听 / 定时器\n元素收集 / 交互检测"]
+        DET["fsp-detector.ts\n纯算法层\n18 宫格 / 填充率\n触底 / 点采样"]
+        CLS["fsp-cls.ts\nCLS 稳定性校准\n位移检测 / 分数计算"]
     end
 
-    IDX -->|"watchFsp2Runtime()"| RT
-    RT -->|"Fsp2ViewportDetector"| DET
+    IDX -->|"watchFspRuntime()"| RT
+    RT -->|"FspViewportDetector"| DET
     RT -->|"startClsStableCheck()"| CLS
     CLS -->|"manager.report()"| IDX
     RT -->|"manager.report()"| IDX
 ```
 
-- **`fsp2-detector.ts`** 是纯算法实现，不依赖 DOM API，通过参数注入方式接收运行时数据，便于单元测试
-- **`fsp2-runtime.ts`** 负责与浏览器 API 交互（MutationObserver、addEventListener、elementsFromPoint），编排检测流程
-- **`fsp2-cls.ts`** 在秒开成功后独立运行，检测布局稳定性
+- **`fsp-detector.ts`** 是纯算法实现，不依赖 DOM API，通过参数注入方式接收运行时数据，便于单元测试
+- **`fsp-runtime.ts`** 负责与浏览器 API 交互（MutationObserver、addEventListener、elementsFromPoint），编排检测流程
+- **`fsp-cls.ts`** 在秒开成功后独立运行，检测布局稳定性
 - **`index.ts`** 作为插件入口，管理上报、采样、桥接等

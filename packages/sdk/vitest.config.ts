@@ -9,7 +9,7 @@ export default defineConfig({
    "@monitor/plugin-metric": new URL("../plugin-metric/src/index.ts", import.meta.url).pathname,
    "@monitor/plugin-page": new URL("../plugin-page/src/index.ts", import.meta.url).pathname,
    "@monitor/plugin-perf-cache": new URL("../plugin-perf-cache/src/index.ts", import.meta.url).pathname,
-   "@monitor/plugin-perf-fsp2": new URL("../plugin-perf-fsp2/src/index.ts", import.meta.url).pathname,
+   "@monitor/plugin-perf-fsp": new URL("../plugin-perf-fsp/src/index.ts", import.meta.url).pathname,
    "@monitor/plugin-perf-ird": new URL("../plugin-perf-ird/src/index.ts", import.meta.url).pathname,
    "@monitor/plugin-perf-shr": new URL("../plugin-perf-shr/src/index.ts", import.meta.url).pathname,
    "@monitor/plugin-pv": new URL("../plugin-pv/src/index.ts", import.meta.url).pathname,

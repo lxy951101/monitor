@@ -8,7 +8,7 @@ const REPORT_PATHS = new Set([
  "/api/logts",
  "/api/pv",
  "/rapi/metricjts",
- "/perf/api/fsp2",
+ "/perf/api/fsp",
  "/perf/api/ird",
  "/perf/api/shr"
 ]);
