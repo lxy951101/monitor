@@ -11,6 +11,7 @@
     "noEmitOnError": true,
     "skipLibCheck": true,
     "paths": {
+      "@monitor/build-config": ["./packages/build-config/src/index.ts"],
       "@monitor/config": ["./packages/config/src/index.ts"],
       "@monitor/core": ["./packages/core/src/index.ts"],
       "@monitor/plugin-error": ["./packages/plugin-error/src/index.ts"],
