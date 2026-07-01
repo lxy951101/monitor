@@ -11,7 +11,6 @@ describe("聚合 SDK", () => {
   it("MonitorClient 暴露配置、插件和指标接口", async () => {
     const send = vi.fn().mockResolvedValue({ ok: true, status: 204 });
     const client = new MonitorClient({
-      registerDefaults: false,
       transport: { send },
       config: { project: "demo" },
     });
@@ -27,7 +26,7 @@ describe("聚合 SDK", () => {
       monitor: [["init", { project: "queued" }]],
       _Monitor_: [["stop"]],
     };
-    const client = new MonitorClient({ registerDefaults: false });
+    const client = new MonitorClient();
 
     const monitor = installGlobal({ target, client });
 

@@ -10,12 +10,10 @@ import type { MetricManager } from "@monitor/plugin-metric";
 import type { PvManager, PvReportOptions, PvResetOptions } from "@monitor/plugin-pv";
 import type { MetricMap } from "@monitor/protocol";
 import { createXhrTransport, type Transport } from "@monitor/transport";
-import { registerDefaultPlugins } from "./register-defaults";
 
 export interface MonitorClientOptions {
   config?: CoreConfigPatch;
   transport?: Transport;
-  registerDefaults?: boolean;
 }
 
 export class MonitorClient {
@@ -28,9 +26,6 @@ export class MonitorClient {
     this.core = new MonitorCore(options.config, {
       transport: options.transport ?? createXhrTransport(),
     });
-    if (options.registerDefaults !== false) {
-      registerDefaultPlugins(this);
-    }
   }
 
   use(plugin: Plugin): this {
