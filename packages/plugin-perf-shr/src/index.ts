@@ -1,4 +1,4 @@
-import type { MonitorContext, Plugin } from "@monitor/core";
+import { createPerfMetadata, type MonitorContext, type PerfMetadata, type PerfRunEnv, type Plugin } from "@monitor/core";
 import { PerfCache, sendWithPerfCache } from "@monitor/plugin-perf-cache";
 import { createPerfCustomPayload, type PerfLog } from "@monitor/protocol";
 import type { BridgeCallbacks, BridgeLike, TransportRequest, TransportResponse } from "@monitor/transport";
@@ -26,6 +26,7 @@ export interface ShrManagerOptions {
   endpoint: string;
   project?: string;
   pagePath?: string;
+  metadata?: PerfPluginMetadata;
   sample?: number;
   timeout?: number;
   tags?: Record<string, string>;
@@ -60,11 +61,11 @@ export class ShrManager {
     }
     await reportWithContainerBridge(this.options.containerBridge, {
       pagePath: this.options.pagePath ?? "",
-      techStack: "knb",
+      techStack: "container",
       scrollStartTime,
       scrollEndTime,
       extra: {
-        ...(this.options.tags ?? {}),
+        ...this.createEnv(),
         $sr: Math.min(this.options.sample ?? 1, 1),
         appId: this.options.project ?? "",
         gatherSource: "js",
@@ -80,7 +81,7 @@ export class ShrManager {
       timeout: this.options.timeout,
       body: JSON.stringify(createPerfCustomPayload({
         category: "shr_web",
-        env: this.options.tags,
+        env: this.createEnv(),
         metrics
       })),
       headers: {
@@ -92,6 +93,19 @@ export class ShrManager {
   private async reportContainerEnd(input: ScrollMetricsInput): Promise<void> {
     await this.reportScrollState(input.startTime, input.endTime, 0);
   }
+
+  private createEnv(): Record<string, string | number | boolean> {
+    return compactRecord({
+      ...this.options.metadata,
+      ...this.options.tags,
+      project: this.options.project,
+      pagePath: this.options.pagePath
+    });
+  }
+}
+
+export interface PerfPluginMetadata extends Partial<PerfMetadata> {
+  runEnv?: PerfRunEnv;
 }
 
 export interface ShrPluginOptions {
@@ -101,10 +115,7 @@ export interface ShrPluginOptions {
   runtime?: ShrRuntime;
   idleDelay?: number;
   containerBridge?: BridgeLike;
-  metadata?: {
-    project?: string;
-    pagePath?: string;
-  };
+  metadata?: PerfPluginMetadata;
 }
 
 export interface ShrRuntime {
@@ -127,11 +138,16 @@ export function createShrPlugin(options: ShrPluginOptions = {}): Plugin {
         return;
       }
 
+      const metadata = createPerfMetadata({
+        project: context.cfgManager.getConfig("project"),
+        ...options.metadata
+      });
       manager = new ShrManager({
         send: context.transport.send.bind(context.transport),
         endpoint: perf.shr.endpoint,
-        project: options.metadata?.project ?? context.cfgManager.getConfig("project"),
-        pagePath: options.metadata?.pagePath,
+        project: metadata.project,
+        pagePath: metadata.pagePath,
+        metadata,
         sample: perf.shr.sample,
         timeout: perf.shr.timeout,
         tags: perf.shr.customTags,
@@ -173,6 +189,16 @@ function calculateFrameTimeDiff(frameTimes: number[]): number {
 
 function isSampled(sample = 1, random: () => number = Math.random): boolean {
   return sample >= 1 || random() < sample;
+}
+
+function compactRecord(input: Record<string, unknown>): Record<string, string | number | boolean> {
+  const output: Record<string, string | number | boolean> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      output[key] = value;
+    }
+  }
+  return output;
 }
 
 function watchScrollRuntime(manager: ShrManager, runtime = getRuntime(), idleDelay = 120): (() => void) | undefined {

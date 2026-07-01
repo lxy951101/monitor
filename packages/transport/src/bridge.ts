@@ -31,7 +31,8 @@ export interface BridgeTransportOptions {
 
 export interface ContainerBridgeReporterOptions {
   bridge?: BridgeLike;
-  preferMSI?: boolean;
+  preferredMethod?: string;
+  fallbackMethods?: string[];
   cacheStorage?: Pick<Storage, "getItem" | "setItem" | "removeItem">;
   cacheKey?: string;
   cacheMaxLength?: number;
@@ -67,15 +68,14 @@ export function createBridgeTransport(options: BridgeTransportOptions): Transpor
 export function createContainerBridgeReporter(options: ContainerBridgeReporterOptions): ContainerBridgeReporter {
   return {
     async reportFsp2(event) {
-      const methodName = options.preferMSI ? "fspRecord" : "ffp.record";
-      const fallbackName = options.preferMSI ? "ffp.record" : "fspRecord";
-      const method = getBridgeMethod(options.bridge, methodName) ?? getBridgeMethod(options.bridge, fallbackName);
+      const methodName = options.preferredMethod ?? "ffp.record";
+      const method = getBridgeMethods(options).find((candidate) => getBridgeMethod(options.bridge, candidate));
       if (!method) {
         saveContainerBridgeCache(options, { methodName, event });
         return { ok: true, status: 0, cached: true };
       }
       await flushContainerBridgeCache(options);
-      return sendEventWithBridge(method, event);
+      return sendEventWithBridge(getBridgeMethod(options.bridge, method) as ContainerBridgeMethod, event);
     }
   };
 }
@@ -101,6 +101,10 @@ function sendEventWithBridge(method: ContainerBridgeMethod, event: Record<string
 function getBridgeMethod(bridge: BridgeLike | undefined, methodName: string): ContainerBridgeMethod | undefined {
   const method = bridge?.[methodName];
   return typeof method === "function" ? method as ContainerBridgeMethod : undefined;
+}
+
+function getBridgeMethods(options: ContainerBridgeReporterOptions): string[] {
+  return [options.preferredMethod ?? "ffp.record", ...(options.fallbackMethods ?? [])];
 }
 
 async function flushContainerBridgeCache(options: ContainerBridgeReporterOptions): Promise<void> {

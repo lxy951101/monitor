@@ -78,8 +78,7 @@ export function createDefaultConfig(): MonitorConfig {
     perf: createDefaultPerfConfig(),
     bridge: {
       enable: true,
-      useKNB: true,
-      useMSI: true
+      preferredMethod: "ffp.record"
     },
     compat: {
       legacyOwlAlias: false,

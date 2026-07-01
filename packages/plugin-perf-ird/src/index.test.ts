@@ -124,7 +124,7 @@ describe("交互响应耗时", () => {
     expect(record).toHaveBeenCalledWith(
       expect.objectContaining({
         pagePath: "/home",
-        techStack: "knb",
+        techStack: "container",
         value: 48,
         tags: expect.objectContaining({
           appId: "demo",

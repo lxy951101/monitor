@@ -115,7 +115,7 @@ function getRuntime(): Fsp2Runtime | undefined {
 
 function getGlobalContainerBridge(): Record<string, unknown> | undefined {
   const scope = window as unknown as Record<string, unknown>;
-  for (const key of ["MSI", "msi", "KNB", "NativeBridge", "bridge"]) {
+  for (const key of ["containerBridge", "nativeBridge", "NativeBridge", "bridge"]) {
     const bridge = scope[key];
     if (bridge && typeof bridge === "object") {
       return bridge as Record<string, unknown>;

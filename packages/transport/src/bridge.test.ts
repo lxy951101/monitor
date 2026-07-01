@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createBridgeTransport, createContainerBridgeReporter } from "./index";
 
 describe("createBridgeTransport", () => {
-  it("KNB 使用注入对象且透传参数", async () => {
+  it("使用注入桥对象且透传参数", async () => {
     const request = vi.fn((_params: unknown, callbacks: { success: () => void }) => {
       callbacks.success();
     });
@@ -25,7 +25,7 @@ describe("createBridgeTransport", () => {
     );
   });
 
-  it("MSI fail 回调会让发送失败", async () => {
+  it("桥 fail 回调会让发送失败", async () => {
     const request = vi.fn((_params: unknown, callbacks: { fail: (reason: Error) => void }) => {
       callbacks.fail(new Error("bridge failed"));
     });
@@ -52,7 +52,7 @@ describe("createContainerBridgeReporter", () => {
     });
     const reporter = createContainerBridgeReporter({
       bridge: { "ffp.record": ffpRecord },
-      preferMSI: false
+      preferredMethod: "ffp.record"
     });
 
     await expect(reporter.reportFsp2({ eType: "success", createMs: 100 })).resolves.toEqual({
@@ -69,13 +69,13 @@ describe("createContainerBridgeReporter", () => {
     );
   });
 
-  it("MSI 环境使用 fspRecord", async () => {
+  it("可通过通用 preferredMethod 指定平台桥方法", async () => {
     const fspRecord = vi.fn((_event: unknown, callbacks: { success: () => void }) => {
       callbacks.success();
     });
     const reporter = createContainerBridgeReporter({
       bridge: { fspRecord },
-      preferMSI: true
+      preferredMethod: "fspRecord"
     });
 
     await reporter.reportFsp2({ eType: "timeout", createMs: 120 });
@@ -87,7 +87,7 @@ describe("createContainerBridgeReporter", () => {
     const storage = createMemoryStorage();
     const reporterWithoutBridge = createContainerBridgeReporter({
       bridge: {},
-      preferMSI: false,
+      preferredMethod: "ffp.record",
       cacheStorage: storage
     });
 
@@ -102,7 +102,7 @@ describe("createContainerBridgeReporter", () => {
     });
     const reporterWithBridge = createContainerBridgeReporter({
       bridge: { "ffp.record": ffpRecord },
-      preferMSI: false,
+      preferredMethod: "ffp.record",
       cacheStorage: storage
     });
 

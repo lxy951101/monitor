@@ -453,7 +453,7 @@ pnpm --filter @monitor/transport test
 
 缓存管理支持 `get`、`save`、`clear`，并捕获 storage 异常；测试用内存 storage mock。
 
-- [ ] **步骤 4：实现 KNB/MSI bridge 包装**
+- [ ] **步骤 4：实现通用容器 bridge 包装**
 
 只封装调用参数和缓存队列，不假设真实容器存在；容器 API 由注入对象提供。
 
@@ -818,7 +818,7 @@ git commit -m "feat: 实现页面性能和首屏插件"
 
 - [ ] **步骤 1：写 Horn 失败测试**
 
-覆盖缓存读取、过期刷新、`useMSI` 默认 false。
+覆盖缓存读取、过期刷新和远端配置解析。
 
 - [ ] **步骤 2：写 Logan 失败测试**
 

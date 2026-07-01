@@ -72,6 +72,15 @@ describe("配置包", () => {
     );
   });
 
+  it("bridge 默认使用通用容器桥配置，不包含特定容器开关", () => {
+    const config = createDefaultConfig();
+
+    expect(config.bridge).toEqual({
+      enable: true,
+      preferredMethod: "ffp.record"
+    });
+  });
+
   it("每次创建默认配置都返回新对象", () => {
     const first = createDefaultConfig();
     const second = createDefaultConfig();

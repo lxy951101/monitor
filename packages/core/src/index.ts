@@ -6,6 +6,7 @@ export type * from "./plugin";
 export * from "./util/cookie";
 export * from "./util/json";
 export * from "./util/page";
+export * from "./util/perf-metadata";
 export * from "./util/route";
 export * from "./util/trace";
 export * from "./util/ua";

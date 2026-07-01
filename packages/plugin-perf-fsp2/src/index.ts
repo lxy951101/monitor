@@ -1,4 +1,4 @@
-import type { MonitorContext, Plugin } from "@monitor/core";
+import { createPerfMetadata, type MonitorContext, type PerfMetadata, type PerfRunEnv, type Plugin } from "@monitor/core";
 import { PerfCache, sendWithPerfCache } from "@monitor/plugin-perf-cache";
 import { createFsp2BridgeEvent, createPerfCustomPayload, type PerfLog } from "@monitor/protocol";
 import {
@@ -64,6 +64,14 @@ export interface Fsp2ManagerOptions {
   sdkVersion?: string;
   pageNavStart?: number;
   isOffline?: boolean;
+  runEnv?: PerfRunEnv;
+  biz?: string;
+  screen?: string;
+  version?: string;
+  visitId?: string;
+  networkType?: string;
+  uuid?: string;
+  containerVersion?: string;
   sample?: number;
   timeout?: number;
   tags?: Record<string, string>;
@@ -147,7 +155,7 @@ export class Fsp2Manager {
       timeout: this.options.timeout,
       body: JSON.stringify(createPerfCustomPayload({
         category: "fsp2_web",
-        env: this.options.tags,
+        env: this.createEnv(),
         metrics
       })),
       headers: {
@@ -168,7 +176,7 @@ export class Fsp2Manager {
       pageNavStart: this.options.pageNavStart,
       isOffline: this.options.isOffline,
       sampleRate: this.options.sample,
-      tags: this.options.tags,
+      tags: this.createEnv(),
       metrics: {
         reachBottom: metrics.reachBottom === "reached",
         renderRate: Number(metrics.renderRate ?? 0),
@@ -182,6 +190,29 @@ export class Fsp2Manager {
         pageStable: input.cls?.pageStable,
         loadedStableGap: input.cls?.loadedStableGap
       }
+    });
+  }
+
+  private createEnv(): Record<string, string | number | boolean> {
+    return compactRecord({
+      ...this.options.tags,
+      project: this.options.project,
+      pagePath: this.options.pagePath,
+      pageUrl: this.options.pageUrl,
+      pageOriginUrl: this.options.pageUrl,
+      userAgent: this.options.userAgent,
+      ua: this.options.userAgent,
+      sdkVersion: this.options.sdkVersion,
+      pageNavStart: this.options.pageNavStart,
+      isOffline: this.options.isOffline,
+      runEnv: this.options.runEnv,
+      biz: this.options.biz,
+      screen: this.options.screen,
+      version: this.options.version,
+      visitId: this.options.visitId,
+      networkType: this.options.networkType,
+      uuid: this.options.uuid,
+      containerVersion: this.options.containerVersion
     });
   }
 }
@@ -204,6 +235,14 @@ export interface Fsp2Metadata {
   sdkVersion?: string;
   pageNavStart?: number;
   isOffline?: boolean;
+  runEnv?: PerfRunEnv;
+  biz?: string;
+  screen?: string;
+  version?: string;
+  visitId?: string;
+  networkType?: string;
+  uuid?: string;
+  containerVersion?: string;
 }
 
 export function createFsp2Plugin(options: Fsp2PluginOptions = {}): Plugin {
@@ -218,7 +257,7 @@ export function createFsp2Plugin(options: Fsp2PluginOptions = {}): Plugin {
       }
 
       const bridgeConfig = context.cfgManager.getConfig("bridge");
-      const metadata = resolveFsp2Metadata(options);
+      const metadata = resolveFsp2Metadata(options, context.cfgManager.getConfig("project"));
       manager = new Fsp2Manager({
         send: context.transport.send.bind(context.transport),
         endpoint: perf.fsp2.endpoint,
@@ -231,7 +270,7 @@ export function createFsp2Plugin(options: Fsp2PluginOptions = {}): Plugin {
         random: options.random,
         now: options.now,
         beforeSend: options.beforeSend,
-        containerBridge: createFsp2ContainerBridge(options, bridgeConfig.useMSI)
+        containerBridge: createFsp2ContainerBridge(options, bridgeConfig.preferredMethod)
       });
       options.onReady?.(manager);
       stopWatch = watchFsp2Runtime(manager, {
@@ -306,27 +345,34 @@ function isSampled(sample = 1, random: () => number = Math.random): boolean {
   return sample >= 1 || random() < sample;
 }
 
-function createFsp2ContainerBridge(options: Fsp2PluginOptions, preferMSI: boolean): ContainerBridgeReporter | undefined {
+function compactRecord(input: Record<string, unknown>): Record<string, string | number | boolean> {
+  const output: Record<string, string | number | boolean> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      output[key] = value;
+    }
+  }
+  return output;
+}
+
+function createFsp2ContainerBridge(options: Fsp2PluginOptions, preferredMethod: string): ContainerBridgeReporter | undefined {
   const bridge = options.containerBridge ?? options.runtime?.containerBridge ?? getGlobalContainerBridge();
   if (!bridge) {
     return undefined;
   }
   return createContainerBridgeReporter({
     bridge,
-    preferMSI
+    preferredMethod
   });
 }
 
-function resolveFsp2Metadata(options: Fsp2PluginOptions): Fsp2Metadata {
-  const runtime = options.runtime ?? getBrowserRuntimeMetadata();
-  return {
-    pagePath: runtime?.location?.pathname,
-    pageUrl: runtime?.location?.href,
-    userAgent: runtime?.navigator?.userAgent,
-    pageNavStart: runtime?.performance?.timing?.navigationStart ?? runtime?.performance?.timeOrigin,
-    isOffline: typeof runtime?.navigator?.onLine === "boolean" ? !runtime.navigator.onLine : undefined,
+function resolveFsp2Metadata(options: Fsp2PluginOptions, project: string): Fsp2Metadata {
+  const metadata = createPerfMetadata({
+    project,
+    runtime: options.runtime ?? getBrowserRuntimeMetadata(),
     ...options.metadata
-  };
+  });
+  return toFsp2Metadata(metadata, options.metadata);
 }
 
 function getBrowserRuntimeMetadata(): Fsp2Runtime | undefined {
@@ -350,11 +396,31 @@ function getGlobalContainerBridge(): BridgeLike | undefined {
     return undefined;
   }
   const scope = window as unknown as Record<string, unknown>;
-  for (const key of ["MSI", "msi", "KNB", "NativeBridge", "bridge"]) {
+  for (const key of ["containerBridge", "nativeBridge", "NativeBridge", "bridge"]) {
     const bridge = scope[key];
     if (bridge && typeof bridge === "object") {
       return bridge as BridgeLike;
     }
   }
   return undefined;
+}
+
+function toFsp2Metadata(metadata: PerfMetadata, overrides?: Fsp2Metadata): Fsp2Metadata {
+  return {
+    pagePath: metadata.pagePath,
+    pageUrl: metadata.pageUrl,
+    userAgent: metadata.userAgent,
+    sdkVersion: metadata.sdkVersion,
+    pageNavStart: metadata.pageNavStart,
+    isOffline: metadata.isOffline,
+    runEnv: metadata.runEnv,
+    biz: metadata.biz,
+    screen: metadata.screen,
+    version: metadata.version,
+    visitId: metadata.visitId,
+    networkType: metadata.networkType,
+    uuid: metadata.uuid,
+    containerVersion: metadata.containerVersion,
+    ...overrides
+  };
 }

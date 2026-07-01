@@ -23,8 +23,7 @@ export function createHornPlugin(options: HornPluginOptions = {}): Plugin {
         project: context.cfgManager.getConfig("project"),
         hornUrl: context.cfgManager.getConfig("hornUrl"),
         ttl: options.ttl,
-        fetcher: options.fetcher,
-        useMSI: context.cfgManager.getConfig("bridge").useMSI
+        fetcher: options.fetcher
       });
       void manager.getConfig<Record<string, unknown>>().then((config) => {
         if (isSamplingPatch(config.sampling)) {

@@ -75,5 +75,5 @@ HTTP 冒烟结果：
 ## 已知验证边界
 
 - 浏览器 Web 指标、XHR/fetch、资源错误、PV、Metric、Perf Web 路径可通过 playground 和 mock-server 验证。
-- KNB/MSI 等容器 Bridge 能力需要真实容器环境或宿主注入对象验证，本地 mock-server 不覆盖真实容器桥接行为。
+- 容器 Bridge 能力需要真实容器环境或宿主注入对象验证，本地 mock-server 不覆盖真实容器桥接行为。
 - Logan CDN 动态加载在单元测试中通过注入 loader 和全局 API 验证；真实 CDN 可用性需要线上网络环境验证。

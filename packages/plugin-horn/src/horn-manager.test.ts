@@ -12,13 +12,11 @@ function createStorage() {
 }
 
 describe("HornManager", () => {
-  it("useMSI 默认 false，并构建带 key/project 的 URL", () => {
+  it("构建带 key/project 的通用 URL，不包含特定容器参数", () => {
     const manager = new HornManager({ key: "demo", project: "monitor" });
 
-    expect(manager.useMSI).toBe(false);
     expect(manager.buildUrl()).toContain("key=demo");
     expect(manager.buildUrl()).toContain("project=monitor");
-    expect(manager.buildUrl()).toContain("useMSI=false");
   });
 
   it("读取有效缓存，过期后刷新远端并写入 _sdkHorn_<key>", async () => {

@@ -1,4 +1,4 @@
-import type { MonitorContext, Plugin } from "@monitor/core";
+import { createPerfMetadata, type MonitorContext, type PerfMetadata, type PerfRunEnv, type Plugin } from "@monitor/core";
 import { PerfCache, sendWithPerfCache } from "@monitor/plugin-perf-cache";
 import { createPerfCustomPayload, type PerfLog } from "@monitor/protocol";
 import type { BridgeCallbacks, BridgeLike, TransportRequest, TransportResponse } from "@monitor/transport";
@@ -12,6 +12,7 @@ export interface IrdManagerOptions {
   endpoint: string;
   project?: string;
   pagePath?: string;
+  metadata?: PerfPluginMetadata;
   sample?: number;
   timeout?: number;
   tags?: Record<string, string>;
@@ -62,7 +63,7 @@ export class IrdManager {
       timeout: this.options.timeout,
       body: JSON.stringify(createPerfCustomPayload({
         category: "ird_web",
-        env: this.options.tags,
+        env: this.createEnv(),
         metrics
       })),
       headers: {
@@ -75,16 +76,29 @@ export class IrdManager {
     const delay = Number(metrics.delay ?? 0);
     return {
       pagePath: this.options.pagePath ?? "",
-      techStack: "knb",
+      techStack: "container",
       value: delay,
       tags: {
-        ...(this.options.tags ?? {}),
+        ...this.createEnv(),
         $sr: Math.min(this.options.sample ?? 1, 1),
         gatherSource: "js",
         appId: this.options.project ?? ""
       }
     };
   }
+
+  private createEnv(): Record<string, string | number | boolean> {
+    return compactRecord({
+      ...this.options.metadata,
+      ...this.options.tags,
+      project: this.options.project,
+      pagePath: this.options.pagePath
+    });
+  }
+}
+
+export interface PerfPluginMetadata extends Partial<PerfMetadata> {
+  runEnv?: PerfRunEnv;
 }
 
 export interface IrdPluginOptions {
@@ -93,9 +107,7 @@ export interface IrdPluginOptions {
   random?: () => number;
   runtime?: IrdRuntime;
   containerBridge?: BridgeLike;
-  metadata?: {
-    pagePath?: string;
-  };
+  metadata?: PerfPluginMetadata;
 }
 
 export interface IrdRuntime {
@@ -119,11 +131,16 @@ export function createIrdPlugin(options: IrdPluginOptions = {}): Plugin {
         return;
       }
 
+      const metadata = createPerfMetadata({
+        project: context.cfgManager.getConfig("project"),
+        ...options.metadata
+      });
       manager = new IrdManager({
         send: context.transport.send.bind(context.transport),
         endpoint: perf.ird.endpoint,
         project: context.cfgManager.getConfig("project"),
-        pagePath: options.metadata?.pagePath,
+        pagePath: metadata.pagePath,
+        metadata,
         sample: perf.ird.sample,
         timeout: perf.ird.timeout,
         tags: perf.ird.customTags,
@@ -148,6 +165,16 @@ export function calculateInteractionDelay(touchEndTime: number, nextFrameTime: n
 
 function isSampled(sample = 1, random: () => number = Math.random): boolean {
   return sample >= 1 || random() < sample;
+}
+
+function compactRecord(input: Record<string, unknown>): Record<string, string | number | boolean> {
+  const output: Record<string, string | number | boolean> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      output[key] = value;
+    }
+  }
+  return output;
 }
 
 function watchInteractionRuntime(manager: IrdManager, runtime = getRuntime(), timeoutMs = 3000): (() => void) | undefined {

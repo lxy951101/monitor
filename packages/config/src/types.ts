@@ -96,8 +96,7 @@ export interface PerfConfig {
 
 export interface BridgeConfig {
   enable: boolean;
-  useKNB: boolean;
-  useMSI: boolean;
+  preferredMethod: string;
 }
 
 export interface CompatConfig {

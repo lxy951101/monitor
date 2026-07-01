@@ -14,7 +14,6 @@ export interface HornManagerOptions {
   fetcher?: (url: string) => Promise<unknown>;
   ttl?: number;
   now?: () => number;
-  useMSI?: boolean;
 }
 
 interface HornCache {
@@ -27,10 +26,6 @@ export class HornManager {
 
   constructor(options: HornManagerOptions) {
     this.options = options;
-  }
-
-  get useMSI(): boolean {
-    return this.options.useMSI ?? false;
   }
 
   async getConfig<T = unknown>(): Promise<T> {
@@ -54,7 +49,6 @@ export class HornManager {
     if (this.options.project) {
       url.searchParams.set("project", this.options.project);
     }
-    url.searchParams.set("useMSI", String(this.useMSI));
     return url.toString();
   }
 
