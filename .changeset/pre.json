@@ -1,0 +1,25 @@
+{
+  "mode": "pre",
+  "tag": "alpha",
+  "initialVersions": {
+    "mock-server": "0.0.0",
+    "playground": "0.0.0",
+    "@monitor/build-config": "0.0.0",
+    "@monitor/bundle": "0.0.0",
+    "@monitor/config": "1.0.0",
+    "@monitor/core": "1.0.0",
+    "@monitor/plugin-error": "1.0.0",
+    "@monitor/plugin-metric": "1.0.0",
+    "@monitor/plugin-page": "1.0.0",
+    "@monitor/plugin-perf-cache": "1.0.0",
+    "@monitor/plugin-perf-fsp": "1.0.0",
+    "@monitor/plugin-perf-ird": "1.0.0",
+    "@monitor/plugin-perf-shr": "1.0.0",
+    "@monitor/plugin-pv": "1.0.0",
+    "@monitor/plugin-resource": "1.0.0",
+    "@monitor/protocol": "1.0.0",
+    "@monitor/sdk": "1.0.0",
+    "@monitor/transport": "1.0.0"
+  },
+  "changesets": []
+}

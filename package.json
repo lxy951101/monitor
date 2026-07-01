@@ -1,5 +1,6 @@
 {
   "name": "monitor-workspace",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,9 +12,13 @@
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "check:size": "node scripts/check-size.mjs",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "pnpm build && changeset publish",
     "ci": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm build && pnpm test:run"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.27.0",
     "@types/node": "^22.0.0",
     "oxfmt": "^0.57.0",
     "oxlint": "^1.72.0",
