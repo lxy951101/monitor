@@ -55,7 +55,7 @@ export function createErrorModel(input: CreateErrorModelInput): ErrorModel {
     content: cleanText(input.content),
     traceid: cleanText(input.traceid)
   };
-  const dynamicMetric = createDynamicMetric(input);
+  const dynamicMetric = createDynamicMetric(input, model.category as string);
   if (dynamicMetric) {
     model.dynamicMetric = dynamicMetric;
   }
@@ -66,17 +66,27 @@ export function encodeErrorBody(models: ErrorModel[]): string {
   return `c=${encodeURIComponent(JSON.stringify(models))}`;
 }
 
-function createDynamicMetric(input: CreateErrorModelInput): ErrorDynamicMetric | undefined {
+function createDynamicMetric(
+  input: CreateErrorModelInput,
+  category: string,
+): ErrorDynamicMetric | undefined {
   const dynamicMetric: ErrorDynamicMetric = {};
-  if (input.rowNum !== undefined) {
-    dynamicMetric.rowNum = input.rowNum;
+
+  // 对齐 owl.js toJson: rowNum/colNum 仅在 SCRIPT 类别时写入 dynamicMetric
+  if (category === "jsError") {
+    if (input.rowNum !== undefined) {
+      dynamicMetric.rowNum = input.rowNum;
+    }
+    if (input.colNum !== undefined) {
+      dynamicMetric.colNum = input.colNum;
+    }
   }
-  if (input.colNum !== undefined) {
-    dynamicMetric.colNum = input.colNum;
-  }
+
+  // tags 始终写入 (对齐 owl.js: this.tags 无条件 extend 到 dynamicMetric)
   if (input.tags !== undefined) {
     dynamicMetric.tags = input.tags;
   }
+
   return Object.keys(dynamicMetric).length > 0 ? dynamicMetric : undefined;
 }
 

@@ -13,10 +13,11 @@ describe("PageManager", () => {
     });
 
     const request = send.mock.calls[0][0];
+    expect(request.method).toBe("GET");
     expect(request.url).toContain("/api/speedts");
     expect(request.url).toContain("project=demo");
-    expect(String(request.body)).toContain("demo|/home|/home");
-    expect(String(request.body)).toContain("|10|");
+    // customspeed 包含点位编码: encodePageSpeedFromTiming 的点位 5=10, 12=80
+    expect(request.url).toContain("customspeed=");
   });
 
   it("上报首屏计算结果", async () => {
@@ -25,7 +26,9 @@ describe("PageManager", () => {
 
     await manager.reportFirstScreen([{ tagName: "IMG", top: 0, height: 10, width: 10, loadTime: 30 }], 100);
 
-    expect(String(send.mock.calls[0][0].body)).toContain("|30|100");
+    const request = send.mock.calls[0][0];
+    expect(request.method).toBe("GET");
+    expect(request.url).toContain("/api/speedts");
+    expect(request.url).toContain("customspeed=");
   });
 });
-

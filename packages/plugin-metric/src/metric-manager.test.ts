@@ -9,7 +9,8 @@ describe("MetricManager", () => {
 
     manager.setTags({ app: "checkout" });
     manager.setTag("env", "test");
-    manager.setMetric("latency", 123, { api: "pay" }, { unit: "ms" });
+    manager.setExtraData({ unit: "ms" });
+    manager.setMetric("latency", 123, { api: "pay" });
     await manager.report();
 
     const request = send.mock.calls[0][0];
@@ -19,11 +20,11 @@ describe("MetricManager", () => {
       tvs: { app: "checkout", env: "test" },
       datas: [
         {
-          name: "latency",
-          value: 123,
-          tags: { api: "pay" },
+          key: "latency",
+          vs: [123],
+          tvs: { api: "pay" },
           extra: { unit: "ms" },
-          timestamp: expect.any(Number)
+          ts: expect.any(Number)
         }
       ]
     });
@@ -50,7 +51,7 @@ describe("MetricManager", () => {
     await vi.advanceTimersByTimeAsync(50);
 
     expect(send).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(send.mock.calls[0][0].body).datas.map((item: { name: string }) => item.name)).toEqual([
+    expect(JSON.parse(send.mock.calls[0][0].body).datas.map((item: { key: string }) => item.key)).toEqual([
       "first",
       "second"
     ]);
@@ -84,7 +85,7 @@ describe("MetricManager", () => {
 
     expect(reportError).toHaveBeenCalledWith(error);
     expect(send).toHaveBeenCalledTimes(2);
-    expect(JSON.parse(send.mock.calls[1][0].body).datas[0].name).toBe("count");
+    expect(JSON.parse(send.mock.calls[1][0].body).datas[0].key).toBe("count");
   });
 
   it("支持 metric endpoint 覆盖和配置默认 tags", async () => {

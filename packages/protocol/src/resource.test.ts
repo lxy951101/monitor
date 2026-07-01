@@ -40,17 +40,47 @@ describe("资源协议", () => {
     expect(JSON.parse(new TextDecoder().decode(data))).toEqual({ infos: [item] });
   });
 
-  it("未实现真实 protobuf 时显式抛错", () => {
+  it("protobuf 编码对齐 owl.js BatchMessage 生成二进制 Uint8Array", () => {
     const item = createResourceModel({
       resourceUrl: "https://example.com/a.js",
       connectType: "https",
       type: "js",
       project: "demo",
       pageUrl: "/home",
-      realUrl: "https://example.com/home"
+      realUrl: "https://example.com/home",
+      responsetime: 12,
+      statusCode: 200,
+      firstCategory: "resource",
+      secondCategory: "script",
+      logContent: "load failed",
+      traceid: "t1",
+      ctags: '{ "k": "v" }',
     });
-    expect(() => encodeResourceProtobufBatch({ infos: [item] })).toThrow(
-      "resource protobuf encoding is not implemented yet"
-    );
+    const data = encodeResourceProtobufBatch({
+      infos: [item],
+      region: "sh",
+      operator: "cmcc",
+    });
+    expect(data).toBeInstanceOf(Uint8Array);
+    expect(data.byteLength).toBeGreaterThan(0);
+
+    // 确保内容包含关键字段的字节 (UTF-8)
+    const view = new TextDecoder().decode(data);
+    expect(view).toContain("https://example.com/a.js");
+    expect(view).toContain("demo");
+    expect(view).toContain("load failed");
+  });
+
+  it("protobuf 空 infos 只包含 batch option 字段", () => {
+    const data = encodeResourceProtobufBatch({
+      infos: [],
+      region: "sh",
+      os: "ios",
+    });
+    expect(data).toBeInstanceOf(Uint8Array);
+    expect(data.byteLength).toBeGreaterThan(0);
+    // 不应包含 infos 字段 tag (10)
+    const bytes = Array.from(data);
+    expect(bytes).not.toContain(10);
   });
 });

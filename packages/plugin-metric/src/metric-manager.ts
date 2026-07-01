@@ -20,6 +20,7 @@ export class MetricManager {
   private readonly delay: number;
   private readonly metrics: MetricItemInput[] = [];
   private readonly tags: MetricMap = {};
+  private extraData: MetricMap = {};
   private timer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(options: MetricManagerOptions) {
@@ -29,11 +30,17 @@ export class MetricManager {
     this.delay = options.delay ?? 0;
   }
 
-  setMetric(name: string, value: number, tags?: MetricMap, extra?: MetricMap): void {
-    this.metrics.push({ name, value, tags, extra });
+  /** 对齐 owl.js setMetric: 上报单条 metric，extra 通过 setExtraData 全局设置 */
+  setMetric(name: string, value: number, tags?: MetricMap): void {
+    this.metrics.push({ name, value, tags });
     if (this.delay > 0) {
       this.scheduleReport();
     }
+  }
+
+  /** 对齐 owl.js setExtraData: 设置全局 extra，上报时注入每条 metric */
+  setExtraData(data: MetricMap): void {
+    Object.assign(this.extraData, data);
   }
 
   setTags(tags: MetricMap): void {
@@ -71,7 +78,8 @@ export class MetricManager {
       body: JSON.stringify(
         createMetricPayload({
           tvs: this.createTvs(),
-          metrics
+          metrics,
+          extra: Object.keys(this.extraData).length > 0 ? { ...this.extraData } : undefined
         })
       ),
       headers: {

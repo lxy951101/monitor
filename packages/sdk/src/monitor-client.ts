@@ -77,8 +77,13 @@ export class MonitorClient {
     return this;
   }
 
-  setMetric(name: string, value: number, tags?: MetricMap, extra?: MetricMap): this {
-    this.metricManager?.setMetric(name, value, tags, extra);
+  setMetric(name: string, value: number, tags?: MetricMap): this {
+    this.metricManager?.setMetric(name, value, tags);
+    return this;
+  }
+
+  setExtraData(data: MetricMap): this {
+    this.metricManager?.setExtraData(data);
     return this;
   }
 

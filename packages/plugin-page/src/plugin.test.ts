@@ -23,7 +23,12 @@ describe("createPagePlugin", () => {
     await Promise.resolve();
 
     expect(send).toHaveBeenCalledTimes(1);
-    expect(String(send.mock.calls[0][0].body)).toContain("demo|/home|/home");
+    const request = send.mock.calls[0][0];
+    expect(request.method).toBe("GET");
+    expect(request.url).toContain("/api/speedts");
+    expect(request.url).toContain("project=demo");
+    expect(request.url).toContain("pageurl=");
+    expect(request.url).toContain("customspeed=");
   });
 
   it("autoCatch.page 关闭时不自动上报", async () => {

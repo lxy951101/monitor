@@ -17,11 +17,12 @@ describe("错误协议", () => {
     expect(decodeURIComponent(body.slice(2))).toContain("\"sec_category\":\"boom\"");
   });
 
-  it("把 rowNum、colNum 和 tags 放入 dynamicMetric", () => {
+  it("jsError 类别时把 rowNum、colNum 和 tags 放入 dynamicMetric", () => {
     const model = createErrorModel({
       project: "demo",
       pageUrl: "/home",
       realUrl: "https://example.com/home",
+      category: "jsError",
       content: "stack",
       rowNum: 12,
       colNum: 5,
@@ -31,6 +32,37 @@ describe("错误协议", () => {
       rowNum: 12,
       colNum: 5,
       tags: { feature: "checkout" }
+    });
+  });
+
+  it("非 jsError 类别时不把 rowNum/colNum 放入 dynamicMetric (对齐 owl.js toJson)", () => {
+    const model = createErrorModel({
+      project: "demo",
+      pageUrl: "/home",
+      realUrl: "https://example.com/home",
+      category: "resourceError",
+      content: "img load failed",
+      rowNum: 12,
+      colNum: 5,
+      tags: { feature: "checkout" }
+    });
+    expect(model.dynamicMetric).toEqual({
+      tags: { feature: "checkout" }
+    });
+  });
+
+  it("默认类别 jsError 时 rowNum/colNum 正常工作", () => {
+    const model = createErrorModel({
+      project: "demo",
+      pageUrl: "/home",
+      realUrl: "https://example.com/home",
+      content: "stack",
+      rowNum: 1,
+      colNum: 2
+    });
+    expect(model.dynamicMetric).toEqual({
+      rowNum: 1,
+      colNum: 2
     });
   });
 });
