@@ -26,6 +26,7 @@
 | @types/node | `^20.14` | `^22` | Node 22 LTS 对齐 |
 | oxlint | — | `^1.x` | 🆕 Rust 语言规范检查，替代 ESLint |
 | oxc-formatter | — | `^0.x` | 🆕 Rust 代码格式化，替代 Prettier |
+| lightningcss | — | 内置 | Vite 8 默认 CSS 压缩器，playground 零配置即用 |
 | pnpm | `9.0.0` | 不变 | — |
 
 > **Node.js 要求：** Vite 8 需要 Node.js 20.19+ 或 22.12+。当前 `@types/node@^22` 已对齐 Node 22 LTS。
