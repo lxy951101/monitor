@@ -61,11 +61,11 @@ flowchart LR
 
 #### 1.1 双入口 + 独立采样
 
-| 入口 | 采样键 | 用途 |
-|---|---|---|
+| 入口              | 采样键     | 用途                       |
+| ----------------- | ---------- | -------------------------- |
 | `pushCall(input)` | `resource` | 静态资源 Timing + 加载错误 |
-| `pushApi(input)` | `api` | XHR / Fetch 请求 |
-| `report(input)` | — | 快捷方法 = push + 立即发送 |
+| `pushApi(input)`  | `api`      | XHR / Fetch 请求           |
+| `report(input)`   | —          | 快捷方法 = push + 立即发送 |
 
 采样率通过 `ResourceConfig.sample` (默认 0.1) 和 `ResourceConfig.sampleApi` (默认 0.1) 独立控制。
 
@@ -82,6 +82,7 @@ flowchart TD
 ```
 
 `triggerReport(reportNow)` 模式：
+
 - `reportNow=true` → 直接 `sendBatch()`
 - `reportNow=false` → `setTimeout(sendBatch, delay)`，timer 存在时不重置
 
@@ -134,11 +135,11 @@ dispatchEvent(event):
   ① HTTP 状态码检测 (enableStatusCheck):
      true  → status >= 200 && < 300 或 304 → success
      false → state === 'load' → success
-  
+
   ② 业务码解析 (autoBusinessCode):
      success=true 时 → getResponseHeader('Content-Type') → 检测 text/json
      → responseText → JSON.parse → parseResponse(response) → businessCode
-  
+
   ③ statusCode 格式: "httpCode|businessCode"
      firstCategory: success → "" / error → "ajaxError"
      logContent:   success → "" / error → "from: xhr {state}. {httpCode} {statusText}"
@@ -273,11 +274,22 @@ getXPath(element):
 
 ```typescript
 type ResourceModel = Record<
-  | "resourceUrl" | "connectType" | "type" | "timestamp"
-  | "requestbyte" | "responsebyte" | "responsetime"
-  | "project" | "pageUrl" | "realUrl" | "statusCode"
-  | "firstCategory" | "secondCategory" | "logContent"
-  | "traceid" | "ctags",
+  | "resourceUrl"
+  | "connectType"
+  | "type"
+  | "timestamp"
+  | "requestbyte"
+  | "responsebyte"
+  | "responsetime"
+  | "project"
+  | "pageUrl"
+  | "realUrl"
+  | "statusCode"
+  | "firstCategory"
+  | "secondCategory"
+  | "logContent"
+  | "traceid"
+  | "ctags",
   string
 >;
 
@@ -326,66 +338,66 @@ stateDiagram-v2
 
 ### ResourceConfig
 
-| 配置项 | 默认值 | 说明 |
-|---|---|---|
-| `sample` | `0.1` | 静态资源采样率 |
-| `sampleApi` | `0.1` | API 采样率 |
-| `combo` | `true` | 是否延迟合并发送 |
-| `delay` | `2000` | combo 延迟 (ms) |
-| `batchSize` | `20` | 预留 |
-| `resourceReg` | `/(.51ping\|.dianping\|...)/` | 资源域名白名单正则 |
-| `catchAbort` | `true` | XHR 是否捕获 abort |
-| `catchTimeout` | `false` | XHR 是否捕获 timeout |
-| `enableStatusCheck` | `false` | 是否 HTTP 状态码严格检测 |
-| `ignoreMTSIForbidRequest` | `true` | 是否忽略反爬拦截 |
-| `disablePerformanceObserver` | `false` | 禁用 PerformanceObserver |
-| `ignoreList` | `[]` | 资源 URL 忽略列表 |
+| 配置项                       | 默认值                        | 说明                     |
+| ---------------------------- | ----------------------------- | ------------------------ |
+| `sample`                     | `0.1`                         | 静态资源采样率           |
+| `sampleApi`                  | `0.1`                         | API 采样率               |
+| `combo`                      | `true`                        | 是否延迟合并发送         |
+| `delay`                      | `2000`                        | combo 延迟 (ms)          |
+| `batchSize`                  | `20`                          | 预留                     |
+| `resourceReg`                | `/(.51ping\|.dianping\|...)/` | 资源域名白名单正则       |
+| `catchAbort`                 | `true`                        | XHR 是否捕获 abort       |
+| `catchTimeout`               | `false`                       | XHR 是否捕获 timeout     |
+| `enableStatusCheck`          | `false`                       | 是否 HTTP 状态码严格检测 |
+| `ignoreMTSIForbidRequest`    | `true`                        | 是否忽略反爬拦截         |
+| `disablePerformanceObserver` | `false`                       | 禁用 PerformanceObserver |
+| `ignoreList`                 | `[]`                          | 资源 URL 忽略列表        |
 
 ### AjaxConfig
 
-| 配置项 | 默认值 | 说明 |
-|---|---|---|
-| `invalid` | `true` | 是否上报非法 URL |
-| `autoBusinessCode` | `false` | 自动解析业务码 |
-| `parseResponse` | `res => ({ code: res.code \|\| res.status })` | 业务码提取函数 |
-| `enableLogTrace` | `false` | 注入 M-TRACEID 请求头 |
-| `timeout` | `15000` | XHR 超时阈值 (ms) |
+| 配置项             | 默认值                                        | 说明                  |
+| ------------------ | --------------------------------------------- | --------------------- |
+| `invalid`          | `true`                                        | 是否上报非法 URL      |
+| `autoBusinessCode` | `false`                                       | 自动解析业务码        |
+| `parseResponse`    | `res => ({ code: res.code \|\| res.status })` | 业务码提取函数        |
+| `enableLogTrace`   | `false`                                       | 注入 M-TRACEID 请求头 |
+| `timeout`          | `15000`                                       | XHR 超时阈值 (ms)     |
 
 ### ImageConfig
 
-| 配置项 | 默认值 | 说明 |
-|---|---|---|
-| `fileSize` | `100` | 图片大小阈值 (KB) |
+| 配置项        | 默认值  | 说明                  |
+| ------------- | ------- | --------------------- |
+| `fileSize`    | `100`   | 图片大小阈值 (KB)     |
 | `maxDuration` | `30000` | 图片加载耗时阈值 (ms) |
-| `filter` | `null` | 图片过滤函数 |
+| `filter`      | `null`  | 图片过滤函数          |
 
 ---
 
 ## 与 的差异
 
-| 维度 | | plugin-resource | 说明 |
-|---|---|---|---|
-| 架构 | 单体 `ResManager`（~600 行） | 5 模块拆分 + 依赖注入 | 独立测试、可替换 |
-| 事件通信 | 内部 `Event` 总线 (ajaxCall/fetchCall) | 直接回调注入 | 更简洁 |
-| XHR Patch | 构造器替换，`isStarted()` 管理 |
-| XHR 事件 | load/error/abort/timeout | 同上 + 可配置 catchAbort/catchTimeout | 对齐 |
-| 错误分级 | ✅ 状态码 + 业务码 + 超时 + 非法 URL | ✅ 完整对齐 | 核心差异已消除 |
-| Fetch 响应体 | `res.clone()` + `copy.text()` | ✅ 对齐 | |
-| x-forbid-reason | ✅ | ✅ | |
-| 采样 | resource / api 独立采样 | ✅ 对齐，`sample: 0.1, sampleApi: 0.1` | |
-| Combo 延迟 | delay 2000 + combo 开关 | ✅ 对齐 | |
-| 图片监控 | IMAGE_SIZE_EXCEED / IMAGE_DURATION_EXCEED | ✅ 对齐 | |
-| 类型标准化 | img→image, script→js, css | + IMG/JS/CSS_PATTERN URL 检测 | ✅ 对齐 |
-| resourceReg 过滤 | 所有入口都过滤 | 所有入口都过滤 | ✅ 对齐 |
-| ignoreList 过滤 | ignoreList.resource | ✅ 对齐 | |
-| Extension 合并 | region/operator/network/container/os/unionId | ✅ 对齐 | |
-| Protobuf 编码 | 生产环境 protobuf | ✅ 对齐，失败回退 JSON | |
-| onBatchPush hook | ✅ | ✅ | |
-| handleRemoteConfig | ✅ | ✅ | |
-| XPath | ✅ localStorage | ✅ | |
-| 条目去重 | entryCache | ❌ (PerformanceObserver 天然去重) | 不需要 |
-| 动态回退轮询 | ajaxCall + 1500ms 轮询 | ❌ (一次性读取) | 简化实现 |
-| 日志 | ✅ | ❌ (明确排除) | 同 plugin-error |
+| 维度               |                                              | plugin-resource                        | 说明             |
+| ------------------ | -------------------------------------------- | -------------------------------------- | ---------------- |
+| 架构               | 单体 `ResManager`（~600 行）                 | 5 模块拆分 + 依赖注入                  | 独立测试、可替换 |
+| 事件通信           | 内部 `Event` 总线 (ajaxCall/fetchCall)       | 直接回调注入                           | 更简洁           |
+| XHR Patch          | 构造器替换，`isStarted()` 管理               |
+| XHR 事件           | load/error/abort/timeout                     | 同上 + 可配置 catchAbort/catchTimeout  | 对齐             |
+| 错误分级           | ✅ 状态码 + 业务码 + 超时 + 非法 URL         | ✅ 完整对齐                            | 核心差异已消除   |
+| Fetch 响应体       | `res.clone()` + `copy.text()`                | ✅ 对齐                                |                  |
+| x-forbid-reason    | ✅                                           | ✅                                     |                  |
+| 采样               | resource / api 独立采样                      | ✅ 对齐，`sample: 0.1, sampleApi: 0.1` |                  |
+| Combo 延迟         | delay 2000 + combo 开关                      | ✅ 对齐                                |                  |
+| 图片监控           | IMAGE_SIZE_EXCEED / IMAGE_DURATION_EXCEED    | ✅ 对齐                                |                  |
+| 类型标准化         | img→image, script→js, css                    | + IMG/JS/CSS_PATTERN URL 检测          | ✅ 对齐          |
+| resourceReg 过滤   | 所有入口都过滤                               | 所有入口都过滤                         | ✅ 对齐          |
+| ignoreList 过滤    | ignoreList.resource                          | ✅ 对齐                                |                  |
+| Extension 合并     | region/operator/network/container/os/unionId | ✅ 对齐                                |                  |
+| Protobuf 编码      | 生产环境 protobuf                            | ✅ 对齐，失败回退 JSON                 |                  |
+| onBatchPush hook   | ✅                                           | ✅                                     |                  |
+| handleRemoteConfig | ✅                                           | ✅                                     |                  |
+| XPath              | ✅ localStorage                              | ✅                                     |                  |
+| 条目去重           | entryCache                                   | ❌ (PerformanceObserver 天然去重)      | 不需要           |
+| 动态回退轮询       | ajaxCall + 1500ms 轮询                       | ❌ (一次性读取)                        | 简化实现         |
+| 日志               | ✅                                           | ❌ (明确排除)                          | 同 plugin-error  |
 
 ---
 

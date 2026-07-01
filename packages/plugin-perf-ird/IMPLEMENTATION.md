@@ -81,17 +81,17 @@ let finished = false;
 
 // 超时通路
 const timeout = setTimeout(() => {
-  if (finished) return;          // RAF 已先触发，跳过
+  if (finished) return; // RAF 已先触发，跳过
   finished = true;
-  cancelAnimationFrame(rafId);   // 取消未触发的 RAF
-  manager.recordTimeout();       // 上报超时
+  cancelAnimationFrame(rafId); // 取消未触发的 RAF
+  manager.recordTimeout(); // 上报超时
 }, timeoutMs);
 
 // RAF 通路
 const rafId = requestAnimationFrame((time) => {
-  if (finished) return;          // timeout 已先触发，跳过
+  if (finished) return; // timeout 已先触发，跳过
   finished = true;
-  clearTimeout(timeout);         // 取消未触发的 timeout
+  clearTimeout(timeout); // 取消未触发的 timeout
   manager.recordNextFrame(time); // 上报正常延迟
 });
 ```
@@ -173,14 +173,14 @@ flowchart TD
 }
 ```
 
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `category` | string | 固定 `"ird_web"` |
-| `env` | object | 环境信息（project、pagePath、customTags 等） |
-| `logs[].delay` | number | 交互响应耗时（ms），timeout 时等于超时时间 |
-| `logs[].touchEnd` | number | `touchend` 时间戳（ms） |
-| `logs[].nextFrame` | number | 下一帧时间戳（ms） |
-| `logs[].timeout` | boolean? | 是否为超时上报（仅超时时存在，值为 `true`） |
+| 字段               | 类型     | 含义                                         |
+| ------------------ | -------- | -------------------------------------------- |
+| `category`         | string   | 固定 `"ird_web"`                             |
+| `env`              | object   | 环境信息（project、pagePath、customTags 等） |
+| `logs[].delay`     | number   | 交互响应耗时（ms），timeout 时等于超时时间   |
+| `logs[].touchEnd`  | number   | `touchend` 时间戳（ms）                      |
+| `logs[].nextFrame` | number   | 下一帧时间戳（ms）                           |
+| `logs[].timeout`   | boolean? | 是否为超时上报（仅超时时存在，值为 `true`）  |
 
 ### 容器环境（通过桥上报）
 
@@ -199,13 +199,13 @@ flowchart TD
 }
 ```
 
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `value` | number | 延迟值（ms） |
-| `techStack` | string | 固定 `"container"` |
-| `tags.$sr` | number | 采样率（0-1），供服务端分析 |
-| `tags.gatherSource` | string | 固定 `"js"`，标识采集来源 |
-| `tags.appId` | string | 项目标识 |
+| 字段                | 类型   | 含义                        |
+| ------------------- | ------ | --------------------------- |
+| `value`             | number | 延迟值（ms）                |
+| `techStack`         | string | 固定 `"container"`          |
+| `tags.$sr`          | number | 采样率（0-1），供服务端分析 |
+| `tags.gatherSource` | string | 固定 `"js"`，标识采集来源   |
+| `tags.appId`        | string | 项目标识                    |
 
 ---
 
@@ -254,23 +254,30 @@ flowchart LR
 ### 核心模块
 
 #### `IrdManager`
+
 - 管理交互状态（`touchEndTime`）
 - 提供三个记录方法：`recordTouchEnd()`、`recordNextFrame()`、`recordTimeout()`
 - 统一上报入口 `report()`，根据运行环境分发到 HTTP 或容器桥
 - 构造上报数据（请求体 / 桥事件）
 
 #### `watchInteractionRuntime()`
+
 - 通过 `IrdRuntime` 接口注册 `touchend` 事件监听
 - 编排 RAF 和 Timeout 的竞态逻辑
 - 使用 `{ capture: true }` 在捕获阶段监听，避免子元素阻止冒泡导致漏报
 - 返回 `stopWatch` 清理函数，用于插件 `stop()` 时移除监听
 
 #### `IrdRuntime` 接口
+
 抽象浏览器 API，便于测试和跨平台适配：
 
 ```typescript
 export interface IrdRuntime {
-  addEventListener: (type: "touchend", listener: () => void, options?: AddEventListenerOptions) => void;
+  addEventListener: (
+    type: "touchend",
+    listener: () => void,
+    options?: AddEventListenerOptions,
+  ) => void;
   removeEventListener: (type: "touchend", listener: () => void) => void;
   requestAnimationFrame: (callback: (time: number) => void) => number;
   cancelAnimationFrame?: (id: number) => void;
@@ -281,7 +288,9 @@ export interface IrdRuntime {
 ```
 
 #### `getRuntime()`
+
 默认运行时实现，绑定浏览器全局 API：
+
 - `addEventListener` → `window.addEventListener`
 - `requestAnimationFrame` → `window.requestAnimationFrame`
 - `now` → `performance.now`
@@ -294,44 +303,44 @@ export interface IrdRuntime {
 
 插件支持通过 `ConsoleLike` 接口注入日志器。启用后会在关键节点输出日志：
 
-| 日志 | 时机 | 内容 |
-|------|------|------|
-| `[ird] config` | 插件初始化 | 采样率、超时时间、endpoint、项目名 |
-| `[ird] observer --功能开启` | 开始监听 touchend | — |
-| `[ird] 交互响应时间:` | RAF 正常触发 | 延迟值（ms） |
-| `[ird] 交互响应超时` | 超时触发 | — |
-| `[ird] handleTouchEnd observer error:` | touchend 处理异常 | 异常信息 |
-| `ird report result` | 容器桥上报成功 | 桥返回结果 |
-| `ird report error:` | 容器桥上报失败 | 错误信息 |
+| 日志                                   | 时机              | 内容                               |
+| -------------------------------------- | ----------------- | ---------------------------------- |
+| `[ird] config`                         | 插件初始化        | 采样率、超时时间、endpoint、项目名 |
+| `[ird] observer --功能开启`            | 开始监听 touchend | —                                  |
+| `[ird] 交互响应时间:`                  | RAF 正常触发      | 延迟值（ms）                       |
+| `[ird] 交互响应超时`                   | 超时触发          | —                                  |
+| `[ird] handleTouchEnd observer error:` | touchend 处理异常 | 异常信息                           |
+| `ird report result`                    | 容器桥上报成功    | 桥返回结果                         |
+| `ird report error:`                    | 容器桥上报失败    | 错误信息                           |
 
 ---
 
 ## 关键常量
 
-| 常量 | 默认值 | 说明 |
-|------|--------|------|
-| 默认采样率 | 1（100%） | `perf.ird.sample`，0-1 范围 |
-| 默认超时 | 3000ms | `perf.ird.timeout` |
-| 上报分类 | `"ird_web"` | 浏览器环境 category |
-| 容器桥键 | `"ird.record"` | 容器桥方法名 |
-| 容器 techStack | `"container"` | 容器环境下标识技术栈 |
+| 常量           | 默认值         | 说明                        |
+| -------------- | -------------- | --------------------------- |
+| 默认采样率     | 1（100%）      | `perf.ird.sample`，0-1 范围 |
+| 默认超时       | 3000ms         | `perf.ird.timeout`          |
+| 上报分类       | `"ird_web"`    | 浏览器环境 category         |
+| 容器桥键       | `"ird.record"` | 容器桥方法名                |
+| 容器 techStack | `"container"`  | 容器环境下标识技术栈        |
 
 ---
 
 ## 与 的差异
 
-| 维度 | (`PluginIrd`) | plugin-perf-ird | 说明 |
-|------|----------------------|-----------------|------|
-| 采样率语义 | 0-100 范围（5=5%） | 0-1 范围（1=100%） | 更直观的 0-1 小数 |
-| 事件捕获 | `capture: true` | `capture: true` | ✅ 已对齐，在捕获阶段监听 |
-| 防重复机制 | 无 | `finished` 标志位 | 防止 timeout 和 RAF 竞态导致重复上报 |
-| 延迟计算 | `endTime - startTime`（可能负值） | `Math.max(0, ...)` | 防止负值 |
-| 超时标记 | 无 | `timeout: true` 字段 | 可区分超时数据和正常数据 |
-| 离线缓存 | 无 | `PerfCache` 支持 | 无网络时数据不丢失 |
-| 可测试性 | 依赖全局 `window` | `IrdRuntime` 接口注入 | 全部 6 个单元测试通过 mock runtime |
-| 运行时优雅降级 | 硬依赖 `window.requestAnimationFrame` | 检查 `window` / `performance` 可用性 | SSR / 非浏览器环境安全 |
-| 调试日志 | `logger.log` 内置 | `ConsoleLike` 可选注入 | 按需启用，生产环境零开销 |
-| 容器 techStack | `"knb"` | `"container"` | 适配当前容器桥规范 |
-| 错误处理 | try-catch in handleTouchEnd | try-catch in onTouchEnd | ✅ 已对齐 |
-| 容器桥回调 | `success`/`fail` | `success(result)`/`fail(error)` | ✅ 已对齐，并增加了日志 |
-| 架构模式 | OOP 类继承 `BasePlugin` | 函数式工厂 + plugin 协议 | 更灵活的组合方式 |
+| 维度           | (`PluginIrd`)                         | plugin-perf-ird                      | 说明                                 |
+| -------------- | ------------------------------------- | ------------------------------------ | ------------------------------------ |
+| 采样率语义     | 0-100 范围（5=5%）                    | 0-1 范围（1=100%）                   | 更直观的 0-1 小数                    |
+| 事件捕获       | `capture: true`                       | `capture: true`                      | ✅ 已对齐，在捕获阶段监听            |
+| 防重复机制     | 无                                    | `finished` 标志位                    | 防止 timeout 和 RAF 竞态导致重复上报 |
+| 延迟计算       | `endTime - startTime`（可能负值）     | `Math.max(0, ...)`                   | 防止负值                             |
+| 超时标记       | 无                                    | `timeout: true` 字段                 | 可区分超时数据和正常数据             |
+| 离线缓存       | 无                                    | `PerfCache` 支持                     | 无网络时数据不丢失                   |
+| 可测试性       | 依赖全局 `window`                     | `IrdRuntime` 接口注入                | 全部 6 个单元测试通过 mock runtime   |
+| 运行时优雅降级 | 硬依赖 `window.requestAnimationFrame` | 检查 `window` / `performance` 可用性 | SSR / 非浏览器环境安全               |
+| 调试日志       | `logger.log` 内置                     | `ConsoleLike` 可选注入               | 按需启用，生产环境零开销             |
+| 容器 techStack | `"knb"`                               | `"container"`                        | 适配当前容器桥规范                   |
+| 错误处理       | try-catch in handleTouchEnd           | try-catch in onTouchEnd              | ✅ 已对齐                            |
+| 容器桥回调     | `success`/`fail`                      | `success(result)`/`fail(error)`      | ✅ 已对齐，并增加了日志              |
+| 架构模式       | OOP 类继承 `BasePlugin`               | 函数式工厂 + plugin 协议             | 更灵活的组合方式                     |

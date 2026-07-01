@@ -111,7 +111,10 @@ export class FspViewportDetector {
     return this.readyTime ?? fallback;
   }
 
-  checkPointElements(points: FspPoint[], elementFromPoint: (point: FspPoint) => Element | undefined): boolean {
+  checkPointElements(
+    points: FspPoint[],
+    elementFromPoint: (point: FspPoint) => Element | undefined,
+  ): boolean {
     return points.some((point) => {
       const element = elementFromPoint(point);
       return Boolean(element);
@@ -125,7 +128,7 @@ export class FspViewportDetector {
       fillRateDone: this.fillRateDone,
       reachBottomDone: this.reachBottomDone,
       readyTime: this.readyTime,
-      renderRate: filledCount / CUBE_COUNT
+      renderRate: filledCount / CUBE_COUNT,
     };
   }
 
@@ -165,7 +168,7 @@ export function createViewportCubes(viewportWidth: number, viewportHeight: numbe
         top: yIndex * cubeHeight,
         right: (xIndex + 1) * cubeWidth,
         bottom: (yIndex + 1) * cubeHeight,
-        filled: false
+        filled: false,
       });
     }
   }
@@ -182,14 +185,16 @@ export function getViewportBottomPoints(viewportWidth: number, viewportHeight: n
   for (let index = 0; index < BOTTOM_POINT_NUM; index += 1) {
     points.push({
       x: (index + 1) * perWidth,
-      y: upperHeight + (index + 1) * perHeight
+      y: upperHeight + (index + 1) * perHeight,
     });
   }
 
   return points;
 }
 
-export function getCubeInnerPoints(cube: Pick<FspCube, "left" | "top" | "right" | "bottom">): FspPoint[] {
+export function getCubeInnerPoints(
+  cube: Pick<FspCube, "left" | "top" | "right" | "bottom">,
+): FspPoint[] {
   const cubeWidth = cube.right - cube.left;
   const cubeHeight = cube.bottom - cube.top;
   const xPointCount = 3;
@@ -202,7 +207,7 @@ export function getCubeInnerPoints(cube: Pick<FspCube, "left" | "top" | "right" 
     for (let yIndex = 0; yIndex < yPointCount; yIndex += 1) {
       points.push({
         x: cube.left + (xIndex + 1) * unitWidth,
-        y: cube.top + (yIndex + 1) * unitHeight
+        y: cube.top + (yIndex + 1) * unitHeight,
       });
     }
   }
@@ -211,7 +216,12 @@ export function getCubeInnerPoints(cube: Pick<FspCube, "left" | "top" | "right" 
 }
 
 function intersects(rect: FspCube, cube: FspCube): boolean {
-  return rect.left < cube.right && rect.right > cube.left && rect.top < cube.bottom && rect.bottom > cube.top;
+  return (
+    rect.left < cube.right &&
+    rect.right > cube.left &&
+    rect.top < cube.bottom &&
+    rect.bottom > cube.top
+  );
 }
 
 function normalizeRect(rect: DOMRect | ClientRect): FspCube {
@@ -220,6 +230,6 @@ function normalizeRect(rect: DOMRect | ClientRect): FspCube {
     top: rect.top,
     right: rect.right,
     bottom: rect.bottom,
-    filled: false
+    filled: false,
   };
 }

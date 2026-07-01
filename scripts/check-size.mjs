@@ -37,21 +37,23 @@ async function collectTypeScriptFiles(root) {
         return collectTypeScriptFiles(entryPath);
       }
 
-      if (entry.isFile() && entryPath.includes(`${path.sep}src${path.sep}`) && entryPath.endsWith(".ts")) {
+      if (
+        entry.isFile() &&
+        entryPath.includes(`${path.sep}src${path.sep}`) &&
+        entryPath.endsWith(".ts")
+      ) {
         return [entryPath];
       }
 
       return [];
-    })
+    }),
   );
 
   return files.flat();
 }
 
 function stripLineNoise(line) {
-  return line
-    .replace(/\/\/.*$/u, "")
-    .replace(/(['"`])(?:\\.|(?!\1).)*\1/gu, "\"\"");
+  return line.replace(/\/\/.*$/u, "").replace(/(['"`])(?:\\.|(?!\1).)*\1/gu, '""');
 }
 
 function findCandidateStart(line) {
@@ -60,25 +62,29 @@ function findCandidateStart(line) {
   if (functionMatch) {
     return {
       name: functionMatch[1] ?? "<anonymous>",
-      kind: "function"
+      kind: "function",
     };
   }
 
-  const arrowMatch = line.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:(?:<[^>{}]+>\s*)?\(|[A-Za-z_$][\w$]*\s*=>)/u);
+  const arrowMatch = line.match(
+    /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:(?:<[^>{}]+>\s*)?\(|[A-Za-z_$][\w$]*\s*=>)/u,
+  );
 
   if (arrowMatch) {
     return {
       name: arrowMatch[1],
-      kind: "arrow"
+      kind: "arrow",
     };
   }
 
-  const methodMatch = line.match(/^(\s+)(?:public|private|protected|static|async|\s)*([A-Za-z_$][\w$]*)(?:\s*<[^>{}]*>)?\s*\(/u);
+  const methodMatch = line.match(
+    /^(\s+)(?:public|private|protected|static|async|\s)*([A-Za-z_$][\w$]*)(?:\s*<[^>{}]*>)?\s*\(/u,
+  );
 
   if (methodMatch && !CONTROL_KEYWORDS.has(methodMatch[2])) {
     return {
       name: methodMatch[2],
-      kind: "method"
+      kind: "method",
     };
   }
 
@@ -89,14 +95,23 @@ function signatureHasBody(signature, candidate) {
   const name = candidate.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 
   if (candidate.kind === "function") {
-    return new RegExp(`\\bfunction\\s+${name === "<anonymous>" ? "" : name}(?:\\s*<[^>{}]*>)?\\s*\\([\\s\\S]*?\\)\\s*(?::[^{}]+)?\\{`, "u").test(signature);
+    return new RegExp(
+      `\\bfunction\\s+${name === "<anonymous>" ? "" : name}(?:\\s*<[^>{}]*>)?\\s*\\([\\s\\S]*?\\)\\s*(?::[^{}]+)?\\{`,
+      "u",
+    ).test(signature);
   }
 
   if (candidate.kind === "arrow") {
-    return new RegExp(`\\b(?:const|let|var)\\s+${name}\\s*=\\s*(?:async\\s*)?(?:<[^>{}]+>\\s*)?(?:\\([\\s\\S]*?\\)|[A-Za-z_$][\\w$]*)\\s*(?::[^=]+)?=>\\s*\\{`, "u").test(signature);
+    return new RegExp(
+      `\\b(?:const|let|var)\\s+${name}\\s*=\\s*(?:async\\s*)?(?:<[^>{}]+>\\s*)?(?:\\([\\s\\S]*?\\)|[A-Za-z_$][\\w$]*)\\s*(?::[^=]+)?=>\\s*\\{`,
+      "u",
+    ).test(signature);
   }
 
-  return new RegExp(`^\\s*(?:public|private|protected|static|async|\\s)*${name}(?:\\s*<[^>{}]*>)?\\s*\\([\\s\\S]*?\\)\\s*(?::[^{}]+)?\\{`, "u").test(signature);
+  return new RegExp(
+    `^\\s*(?:public|private|protected|static|async|\\s)*${name}(?:\\s*<[^>{}]*>)?\\s*\\([\\s\\S]*?\\)\\s*(?::[^{}]+)?\\{`,
+    "u",
+  ).test(signature);
 }
 
 function signatureCannotHaveBody(signature, candidate) {
@@ -132,7 +147,9 @@ function reportCompletedFunctions(filePath, stack, currentLine) {
     const lineCount = currentLine - entry.startLine + 1;
 
     if (lineCount > MAX_FUNCTION_LINES) {
-      violations.push(`${filePath}:${entry.startLine} 函数 ${entry.name} 超过 ${MAX_FUNCTION_LINES} 行，当前 ${lineCount} 行`);
+      violations.push(
+        `${filePath}:${entry.startLine} 函数 ${entry.name} 超过 ${MAX_FUNCTION_LINES} 行，当前 ${lineCount} 行`,
+      );
     }
   }
 }
@@ -160,7 +177,7 @@ function checkFunctionSizes(filePath, lines) {
           ...candidate,
           startLine: index + 1,
           signature: cleanLine,
-          depth: braceDelta
+          depth: braceDelta,
         };
       }
     }
@@ -169,7 +186,7 @@ function checkFunctionSizes(filePath, lines) {
       stack.push({
         name: pending.name,
         startLine: pending.startLine,
-        depth: pending.depth
+        depth: pending.depth,
       });
       pending = null;
     } else if (pending && signatureCannotHaveBody(pending.signature, pending)) {

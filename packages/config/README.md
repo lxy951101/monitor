@@ -36,13 +36,13 @@ MonitorConfig
 
 ## 关键常量 `endpoints.ts`
 
-| 常量 | 说明 |
-|------|------|
-| `SDK_VERSION` | SDK 版本号 |
-| `REPORT_BASE_URLS.production` | 生产环境上报域名 |
-| `REPORT_BASE_URLS.development` | 测试环境上报域名 |
-| `API_PATHS` | 各数据类型的 API 路径映射 |
-| `PERF_DEFAULT_ENDPOINTS` | Perf (FSP/IRD/SHR) 默认端点 |
+| 常量                           | 说明                        |
+| ------------------------------ | --------------------------- |
+| `SDK_VERSION`                  | SDK 版本号                  |
+| `REPORT_BASE_URLS.production`  | 生产环境上报域名            |
+| `REPORT_BASE_URLS.development` | 测试环境上报域名            |
+| `API_PATHS`                    | 各数据类型的 API 路径映射   |
+| `PERF_DEFAULT_ENDPOINTS`       | Perf (FSP/IRD/SHR) 默认端点 |
 
 ## 使用示例
 
@@ -56,16 +56,16 @@ const defaults = createDefaultConfig();
 const merged = mergeMonitorConfig(defaults, {
   project: "my-app",
   devMode: true,
-  error: { sample: 0.5 }
+  error: { sample: 0.5 },
 });
 ```
 
 ## 合并规则
 
-| 类型 | 行为 |
-|------|------|
-| `undefined` | 不覆盖已有值 |
-| 普通对象 | 递归合并 |
-| 数组 | 直接替换 |
-| 函数 | 直接替换 |
-| `RegExp` | 直接替换；`resourceReg` 支持传字符串自动 `new RegExp(s)` |
+| 类型        | 行为                                                     |
+| ----------- | -------------------------------------------------------- |
+| `undefined` | 不覆盖已有值                                             |
+| 普通对象    | 递归合并                                                 |
+| 数组        | 直接替换                                                 |
+| 函数        | 直接替换                                                 |
+| `RegExp`    | 直接替换；`resourceReg` 支持传字符串自动 `new RegExp(s)` |

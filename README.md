@@ -58,7 +58,7 @@ import { Monitor } from "@monitor/sdk";
 Monitor.start({
   project: "demo",
   devMode: true,
-  reportBaseUrl: ""
+  reportBaseUrl: "",
 });
 ```
 

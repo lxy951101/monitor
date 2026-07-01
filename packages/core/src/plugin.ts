@@ -4,14 +4,14 @@ import type { EventBus } from "./event-bus";
 import type { Logger } from "./logger";
 
 export interface MonitorContext {
- cfgManager: CfgManager;
- eventBus: EventBus;
- transport: Transport;
- logger: Logger;
+  cfgManager: CfgManager;
+  eventBus: EventBus;
+  transport: Transport;
+  logger: Logger;
 }
 
 export interface Plugin {
- name: string;
- start: (context: MonitorContext) => void;
- stop?: (context?: MonitorContext) => void;
+  name: string;
+  start: (context: MonitorContext) => void;
+  stop?: (context?: MonitorContext) => void;
 }

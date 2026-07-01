@@ -50,6 +50,7 @@ frameDropRate  = (Σ gap_i / duration) × 1000                     // 掉帧率 
 ```
 
 `frameDropRate` 取值范围 0~1000：
+
 - **0** — 每帧都在预算内（16.7ms），无掉帧
 - **1000** — 所有帧都超预算，相当于完全卡死
 
@@ -61,10 +62,10 @@ frameDropRate  = (Σ gap_i / duration) × 1000                     // 掉帧率 
 
 #### 6. 双通道上报
 
-| 运行环境 | 上报方式 |
-|---------|---------|
-| **Browser（纯 Web）** | POST 到 `perf.shr.endpoint`，body 为 `{ category: "shr_web", env, logs: [metrics] }` |
-| **Container（混合架构）** | 通过 bridge 调用 `shr.sendScrollStateTime`，由客户端侧完成采集后回传 |
+| 运行环境                  | 上报方式                                                                             |
+| ------------------------- | ------------------------------------------------------------------------------------ |
+| **Browser（纯 Web）**     | POST 到 `perf.shr.endpoint`，body 为 `{ category: "shr_web", env, logs: [metrics] }` |
+| **Container（混合架构）** | 通过 bridge 调用 `shr.sendScrollStateTime`，由客户端侧完成采集后回传                 |
 
 Container 模式下插件只上报 `scrollStartTime` / `scrollEndTime`，实际的掉帧率由客户端计算。
 
@@ -112,10 +113,10 @@ scroll 事件 (capture 阶段)
 
 ```ts
 interface ShrPluginOptions {
-  idleDelay?: number;         // 滚动停止判定阈值 (ms)，默认 150
-  cache?: PerfCache;           // 离线缓存实例
-  random?: () => number;       // 随机数生成器（采样用）
-  runtime?: ShrRuntime;        // 运行时注入（测试用）
+  idleDelay?: number; // 滚动停止判定阈值 (ms)，默认 150
+  cache?: PerfCache; // 离线缓存实例
+  random?: () => number; // 随机数生成器（采样用）
+  runtime?: ShrRuntime; // 运行时注入（测试用）
   containerBridge?: BridgeLike; // 容器桥接对象
   metadata?: PerfPluginMetadata;
 }
@@ -124,7 +125,7 @@ interface ShrPluginOptions {
 通过 `@monitor/core` 的 `CfgManager` 读取：
 
 ```ts
-context.cfgManager.getConfig("perf.shr")
+context.cfgManager.getConfig("perf.shr");
 // → { enable, endpoint, sample, timeout, customTags }
 ```
 
@@ -132,10 +133,10 @@ context.cfgManager.getConfig("perf.shr")
 
 本插件是 （）`PluginShr` 的重写版本，核心行为已对齐：
 
-| 项 | | plugin-perf-shr |
-|---|---|---|
-| idle 阈值 | 150ms | 150ms ✅ |
-| 事件捕获 | `capture: true` | `capture: true` ✅ |
-| 日志 | `[shr]` 前缀 | `[shr]` 前缀 ✅ |
-| costMs | 追踪 | 追踪 ✅ |
+| 项         |                                         | plugin-perf-shr                             |
+| ---------- | --------------------------------------- | ------------------------------------------- |
+| idle 阈值  | 150ms                                   | 150ms ✅                                    |
+| 事件捕获   | `capture: true`                         | `capture: true` ✅                          |
+| 日志       | `[shr]` 前缀                            | `[shr]` 前缀 ✅                             |
+| costMs     | 追踪                                    | 追踪 ✅                                     |
 | 技术栈标识 | Browser: `queue.add` / Container: `knb` | Browser: HTTP POST / Container: `container` |

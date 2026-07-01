@@ -5,6 +5,13 @@
   "main": "dist/index.cjs",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
   "scripts": {
     "build": "vite build",
     "typecheck": "tsc --noEmit",
@@ -15,12 +22,5 @@
     "@monitor/plugin-perf-cache": "workspace:*",
     "@monitor/protocol": "workspace:*",
     "@monitor/transport": "workspace:*"
-  },
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    }
   }
 }

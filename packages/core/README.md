@@ -34,8 +34,8 @@ SDK 顶层编排器。管理插件生命周期和配置同步。
 import { MonitorCore } from "@monitor/core";
 
 const core = new MonitorCore(
-  { project: "my-app", devMode: false },  // CoreConfigPatch
-  { transport: myTransport }               // MonitorCoreOptions
+  { project: "my-app", devMode: false }, // CoreConfigPatch
+  { transport: myTransport }, // MonitorCoreOptions
 );
 
 core.use(errorPlugin);
@@ -43,15 +43,15 @@ core.use(pagePlugin);
 core.start();
 ```
 
-| 方法 | 说明 |
-|------|------|
-| `use(plugin)` | 注册插件。若已 start 则立即启动该插件，返回 `this` 支持链式调用 |
-| `start(config?)` | 启动所有插件（按注册顺序）。可选传入配置 patch。幂等——重复调用无副作用 |
-| `stop()` | 停止所有插件（按注册逆序），清空 EventBus。可再次 `start()` |
-| `config(patch)` | 更新配置并同步 devMode 到 Logger |
-| `setConfig(key, value)` | 单项配置更新 |
-| `getConfig()` / `getConfig(key)` | 读取配置（返回 deep clone） |
-| `isStarted()` | 查询启动状态 |
+| 方法                             | 说明                                                                   |
+| -------------------------------- | ---------------------------------------------------------------------- |
+| `use(plugin)`                    | 注册插件。若已 start 则立即启动该插件，返回 `this` 支持链式调用        |
+| `start(config?)`                 | 启动所有插件（按注册顺序）。可选传入配置 patch。幂等——重复调用无副作用 |
+| `stop()`                         | 停止所有插件（按注册逆序），清空 EventBus。可再次 `start()`            |
+| `config(patch)`                  | 更新配置并同步 devMode 到 Logger                                       |
+| `setConfig(key, value)`          | 单项配置更新                                                           |
+| `getConfig()` / `getConfig(key)` | 读取配置（返回 deep clone）                                            |
+| `isStarted()`                    | 查询启动状态                                                           |
 
 **生命周期顺序：**
 
@@ -74,7 +74,7 @@ constructor → use() × N → start() → [运行] → stop() → start() → .
 ```
 
 ```typescript
-cfg.isSampled("page");    // → boolean
+cfg.isSampled("page"); // → boolean
 cfg.isSampled("custom-key"); // 也支持自定义 key（从 custom 桶查询）
 ```
 
@@ -89,20 +89,20 @@ cfg.isSampled("custom-key"); // 也支持自定义 key（从 custom 桶查询）
 
 服务端下发的采样 key 可能与本地 `SampleKey` 不一致。`CfgManager` 内置了默认映射表：
 
-| 远程 key | 本地 SampleKey |
-|----------|---------------|
-| `performance` | `page` |
-| `request` | `api` |
-| `log` | `error` |
-| `resource` | `resource` |
+| 远程 key      | 本地 SampleKey |
+| ------------- | -------------- |
+| `performance` | `page`         |
+| `request`     | `api`          |
+| `log`         | `error`        |
+| `resource`    | `resource`     |
 
 已知的 `SampleKey` 直接透传，未识别的 key 落入 `custom` 桶。映射表可通过 `CfgManagerOptions.remoteSamplingKeyMap` 覆盖。
 
 ```typescript
 cfg.applyRemoteSampling({
-  performance: 0.3,   // → page
-  request: 0.5,        // → api
-  my_feature: 0.1      // → custom["my_feature"]
+  performance: 0.3, // → page
+  request: 0.5, // → api
+  my_feature: 0.1, // → custom["my_feature"]
 });
 cfg.isSampled("my_feature"); // 从 custom 桶查找
 ```
@@ -160,21 +160,21 @@ bus.clear();                      // 清空所有事件
 
 **内部机制：**
 
-| 特性 | 实现方式 |
-|------|---------|
-| 故障隔离 | `emit` 中每个 listener 包裹 try-catch，单个异常不阻断后续 listener |
+| 特性     | 实现方式                                                             |
+| -------- | -------------------------------------------------------------------- |
+| 故障隔离 | `emit` 中每个 listener 包裹 try-catch，单个异常不阻断后续 listener   |
 | 迭代安全 | `emit` 前对 listener 集合做快照 `[...set]`，避免遍历中增删导致的问题 |
-| once | 创建 wrapper 函数，触发时自动 `off` 并调用原始 listener |
-| 内存 | `off` 删除 listener 且 Set 为空时清理 Map 条目 |
+| once     | 创建 wrapper 函数，触发时自动 `off` 并调用原始 listener              |
+| 内存     | `off` 删除 listener 且 Set 为空时清理 Map 条目                       |
 
 ### Logger
 
 `devMode` 门控的轻量日志器，默认不输出。
 
 ```typescript
-const logger = new Logger(false);        // 静默
+const logger = new Logger(false); // 静默
 logger.setDevMode(true);
-logger.log("debug info");                // 此时才输出
+logger.log("debug info"); // 此时才输出
 logger.warn("warning");
 ```
 
@@ -205,23 +205,23 @@ export interface MonitorContext {
 
 ### 环境检测 `util/env`
 
-| 函数 | 说明 |
-|------|------|
-| `isBrowserEnv()` | `typeof window !== "undefined" && typeof document !== "undefined"` |
-| `getUserAgent(navigatorLike?)` | 读取 UA，支持注入便于测试 |
-| `isMobileUserAgent(ua?)` | 正则匹配 `android\|iphone\|ipad\|ipod\|mobile` |
+| 函数                            | 说明                                                                             |
+| ------------------------------- | -------------------------------------------------------------------------------- |
+| `isBrowserEnv()`                | `typeof window !== "undefined" && typeof document !== "undefined"`               |
+| `getUserAgent(navigatorLike?)`  | 读取 UA，支持注入便于测试                                                        |
+| `isMobileUserAgent(ua?)`        | 正则匹配 `android\|iphone\|ipad\|ipod\|mobile`                                   |
 | `checkIsSpider(ua?, patterns?)` | 爬虫检测，默认匹配 14 种常见 bot（Baiduspider, Googlebot 等），patterns 可自定义 |
-| `getOsByUA(ua?)` | 从 UA 提取操作系统：`iOS` / `Android` / `Mac` / `Windows` / `Linux` |
-| `getConnectionType()` | `navigator.connection.effectiveType`，降级到 UA 中 `NetType/` 字段 |
+| `getOsByUA(ua?)`                | 从 UA 提取操作系统：`iOS` / `Android` / `Mac` / `Windows` / `Linux`              |
+| `getConnectionType()`           | `navigator.connection.effectiveType`，降级到 UA 中 `NetType/` 字段               |
 
 ### URL 工具 `util/url`
 
-| 函数 | 说明 |
-|------|------|
-| `stringifyQuery(query)` | 将对象转为 URL query string，自动 `encodeURIComponent`，过滤 `undefined` |
+| 函数                            | 说明                                                                                    |
+| ------------------------------- | --------------------------------------------------------------------------------------- |
+| `stringifyQuery(query)`         | 将对象转为 URL query string，自动 `encodeURIComponent`，过滤 `undefined`                |
 | `replaceParam(url, key, value)` | 替换/添加/删除（`value=undefined`）URL 参数，使用 `URLSearchParams` 标准解析，保留 hash |
-| `getFullUrl(url, base?)` | 解析协议相对路径 `//` 和根路径 `/` 为完整 URL |
-| `checkSameOrigin(url, origin?)` | 使用 `URL` 构造函数判断同源，SSR 安全 |
+| `getFullUrl(url, base?)`        | 解析协议相对路径 `//` 和根路径 `/` 为完整 URL                                           |
+| `checkSameOrigin(url, origin?)` | 使用 `URL` 构造函数判断同源，SSR 安全                                                   |
 
 ### 路由监听 `util/route`
 
@@ -241,7 +241,7 @@ export interface MonitorContext {
 const stop = createHistoryRouteWatcher(
   env,
   (url) => console.log("route changed:", url),
-  (err) => console.error("handler error:", err)  // 可选异常回调
+  (err) => console.error("handler error:", err), // 可选异常回调
 );
 stop(); // 恢复原始 history 方法
 ```
@@ -257,13 +257,16 @@ stop(); // 恢复原始 history 方法
 ### Cookie `util/cookie`
 
 ```typescript
-getCookie("token");                          // 解码值
-getCookie("token", { raw: true });           // 原始值，不解码
-getCookie("token", { cookie: "a=1; b=2" });  // 注入 cookie 字符串（SSR/测试）
+getCookie("token"); // 解码值
+getCookie("token", { raw: true }); // 原始值，不解码
+getCookie("token", { cookie: "a=1; b=2" }); // 注入 cookie 字符串（SSR/测试）
 
 setCookie("token", "abc 123", {
-  path: "/", maxAge: 3600, domain: ".example.com",
-  sameSite: "Lax", secure: true
+  path: "/",
+  maxAge: 3600,
+  domain: ".example.com",
+  sameSite: "Lax",
+  secure: true,
 });
 ```
 
@@ -277,7 +280,7 @@ const meta = createPerfMetadata({
   version: "1.0.0",
   sdkVersion: "2.0.0",
   runEnv: "browser",
-  runtime: myCustomRuntime  // 可选注入，默认读取 window.*
+  runtime: myCustomRuntime, // 可选注入，默认读取 window.*
 });
 
 // meta = { project, version, pageUrl, ua, screen: "1920x1080",
@@ -289,15 +292,15 @@ const meta = createPerfMetadata({
 
 ### 其他工具
 
-| 文件 | 导出 | 说明 |
-|------|------|------|
-| `util/guid` | `guid()` | UUID v4 格式随机 ID（优先 crypto），适用于 pageId 等 |
-| `util/trace` | `traceId(options?)` | 格式 `monitor-{timestamp}-{base36随机数}`，支持注入 now/random |
-| `util/json` | `safeJsonStringify(value)` | JSON.stringify 防循环引用，遇到循环输出 `"[Circular]"` |
-| `util/xpath` | `getXPath(element)` | 生成元素的 XPath 表达式，有 id 时简化为 `//*[@id="..."]`，否则走标签+位置索引 |
-| `util/page` | `getPageUrl(env?)` | 读取当前页面完整 URL，SSR 安全 |
-| `util/deep-copy` | `deepCopy(value)` | 递归深拷贝（Array + 纯对象），不处理 Date/Map/Set 等特殊类型 |
-| `util/tags` | `formatTags(tags)` | 将 mixed 值转为 `Record<string, string>`：primitive 直转 string，复杂类型 JSON.stringify，null/undefined 跳过 |
+| 文件             | 导出                       | 说明                                                                                                          |
+| ---------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `util/guid`      | `guid()`                   | UUID v4 格式随机 ID（优先 crypto），适用于 pageId 等                                                          |
+| `util/trace`     | `traceId(options?)`        | 格式 `monitor-{timestamp}-{base36随机数}`，支持注入 now/random                                                |
+| `util/json`      | `safeJsonStringify(value)` | JSON.stringify 防循环引用，遇到循环输出 `"[Circular]"`                                                        |
+| `util/xpath`     | `getXPath(element)`        | 生成元素的 XPath 表达式，有 id 时简化为 `//*[@id="..."]`，否则走标签+位置索引                                 |
+| `util/page`      | `getPageUrl(env?)`         | 读取当前页面完整 URL，SSR 安全                                                                                |
+| `util/deep-copy` | `deepCopy(value)`          | 递归深拷贝（Array + 纯对象），不处理 Date/Map/Set 等特殊类型                                                  |
+| `util/tags`      | `formatTags(tags)`         | 将 mixed 值转为 `Record<string, string>`：primitive 直转 string，复杂类型 JSON.stringify，null/undefined 跳过 |
 
 ---
 

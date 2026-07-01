@@ -77,11 +77,11 @@ sequenceDiagram
 
 捕获层支持三种粒度的回调：
 
-| 回调 | 对应 方法 | 传递参数 |
-|---|---|---|
-| `onWindowError` | `parseWindowError` | `(msg, source, lineno, colno, error)` |
-| `onUnhandledRejection` | `parsePromiseUnhandled` | `(event: PromiseRejectionEvent)` |
-| `onConsoleError` | `parseConsoleError` | `(...args: unknown[])` |
+| 回调                   | 对应 方法               | 传递参数                              |
+| ---------------------- | ----------------------- | ------------------------------------- |
+| `onWindowError`        | `parseWindowError`      | `(msg, source, lineno, colno, error)` |
+| `onUnhandledRejection` | `parsePromiseUnhandled` | `(event: PromiseRejectionEvent)`      |
+| `onConsoleError`       | `parseConsoleError`     | `(...args: unknown[])`                |
 
 若未提供专用处理器，回退到通用 `addError` 回调。
 
@@ -139,10 +139,10 @@ pushModel(model)
 
 #### 4.1 双重去重机制
 
-| 层级 | 方式 | 用于 |
-|---|---|---|
-| **isExist**（内容去重） | 对比 `sec_category + resourceUrl + rowNum + colNum + content` | 当前队列内的完全重复（） |
-| **isDuplicate**（时间窗口去重） | key=`category|sec_category|content`，`recent` Map 记录，`dedupeTime` 过期 | 短时间内相同错误的合并（的 `isExist` + `recent` 组合） |
+| 层级                            | 方式                                                          | 用于                     |
+| ------------------------------- | ------------------------------------------------------------- | ------------------------ | ---------------------------------------------- | ------------------------------------------------------ |
+| **isExist**（内容去重）         | 对比 `sec_category + resourceUrl + rowNum + colNum + content` | 当前队列内的完全重复（） |
+| **isDuplicate**（时间窗口去重） | key=`category                                                 | sec_category             | content`，`recent` Map 记录，`dedupeTime` 过期 | 短时间内相同错误的合并（的 `isExist` + `recent` 组合） |
 
 #### 4.2 onErrorPush Hook
 
@@ -197,7 +197,7 @@ checkRateLimit():
 sendErrors(isReportNow=true):
   clearFlushTimer
   if queue empty → return
-  
+
   checkRateLimit → 限流则清空队列
 
   splice 队列 → batch
@@ -277,9 +277,17 @@ reportSystemError(err, opts):
 
 ```typescript
 type ErrorFieldName =
-  | "project" | "pageUrl" | "realUrl" | "resourceUrl"
-  | "category" | "sec_category" | "level" | "unionId"
-  | "timestamp" | "content" | "traceid";
+  | "project"
+  | "pageUrl"
+  | "realUrl"
+  | "resourceUrl"
+  | "category"
+  | "sec_category"
+  | "level"
+  | "unionId"
+  | "timestamp"
+  | "content"
+  | "traceid";
 
 type ErrorModel = Record<ErrorFieldName, string | number> & {
   dynamicMetric?: {
@@ -338,21 +346,21 @@ flowchart LR
 
 错误监控的核心状态机：
 
-| 方法 | 职责 |
-|---|---|
-| `addError(errorLike, opts)` | 通用错误上报入口 |
-| `parseWindowError(msg, url, line, col, err)` | 解析 `window.onerror` 错误 |
-| `parsePromiseUnhandled(event)` | 解析 `unhandledrejection` 错误 |
-| `parseConsoleError(...args)` | 解析 `console.error` 错误 |
-| `report(errorLike, opts)` | 快捷上报 = addError + 立即发送 |
-| `flush()` | 强制立即发送当前队列 |
-| `sendErrors(isReportNow)` | 核心发送方法（限流 + combo） |
-| `sendCachedErrors()` | 发送 localStorage 历史缓存 |
-| `checkCache()` | 延迟 4000ms 读取历史缓存 |
-| `handlePageLeave()` | 页面离开时的紧急发送 |
-| `detectLeave()` | 自动注册 `beforeunload` 检测 |
-| `reportSystemError(err, opts)` | SDK 自身错误上报 |
-| `reportSystemWarn(err, opts)` | SDK 自身 warn 上报 |
+| 方法                                         | 职责                           |
+| -------------------------------------------- | ------------------------------ |
+| `addError(errorLike, opts)`                  | 通用错误上报入口               |
+| `parseWindowError(msg, url, line, col, err)` | 解析 `window.onerror` 错误     |
+| `parsePromiseUnhandled(event)`               | 解析 `unhandledrejection` 错误 |
+| `parseConsoleError(...args)`                 | 解析 `console.error` 错误      |
+| `report(errorLike, opts)`                    | 快捷上报 = addError + 立即发送 |
+| `flush()`                                    | 强制立即发送当前队列           |
+| `sendErrors(isReportNow)`                    | 核心发送方法（限流 + combo）   |
+| `sendCachedErrors()`                         | 发送 localStorage 历史缓存     |
+| `checkCache()`                               | 延迟 4000ms 读取历史缓存       |
+| `handlePageLeave()`                          | 页面离开时的紧急发送           |
+| `detectLeave()`                              | 自动注册 `beforeunload` 检测   |
+| `reportSystemError(err, opts)`               | SDK 自身错误上报               |
+| `reportSystemWarn(err, opts)`                | SDK 自身 warn 上报             |
 
 #### `createErrorCapture()`（capture.ts）
 
@@ -395,57 +403,57 @@ stateDiagram-v2
 
 ## 关键配置（ErrorConfig）
 
-| 配置项 | 默认值 | 说明 |
-|---|---|---|
-| `sample` | `1` | 采样率 |
-| `maxQueueLength` | `20` | 队列达到即触发发送 |
-| `noScriptError` | `true` | 过滤 "Script error" 开头错误 |
-| `formatUnhandledRejection` | `false` | 为 unhandled rejection 名称加 `[unhandledrejection]` 前缀 |
-| `combo` | `false` | 是否启用延迟合并（true = 等 delay 后批量发，false = 每条立即发） |
-| `delay` | `1000` | combo 延迟 (ms) |
-| `maxNum` | `100` | 时间窗口内最大错误数 |
-| `maxTime` | `60000` | 限流窗口时长 (ms) |
-| `maxSize` | `10240` | 单条 content 最大长度（>= 即丢弃，） |
-| `disableCache` | `true` | 是否禁用 localStorage 缓存 |
-| `ignoreList` | `[]` | 忽略列表（string 前缀匹配 / RegExp） |
-| `maxRepeat` | `5` | 最大重复次数（预留） |
+| 配置项                     | 默认值  | 说明                                                             |
+| -------------------------- | ------- | ---------------------------------------------------------------- |
+| `sample`                   | `1`     | 采样率                                                           |
+| `maxQueueLength`           | `20`    | 队列达到即触发发送                                               |
+| `noScriptError`            | `true`  | 过滤 "Script error" 开头错误                                     |
+| `formatUnhandledRejection` | `false` | 为 unhandled rejection 名称加 `[unhandledrejection]` 前缀        |
+| `combo`                    | `false` | 是否启用延迟合并（true = 等 delay 后批量发，false = 每条立即发） |
+| `delay`                    | `1000`  | combo 延迟 (ms)                                                  |
+| `maxNum`                   | `100`   | 时间窗口内最大错误数                                             |
+| `maxTime`                  | `60000` | 限流窗口时长 (ms)                                                |
+| `maxSize`                  | `10240` | 单条 content 最大长度（>= 即丢弃，）                             |
+| `disableCache`             | `true`  | 是否禁用 localStorage 缓存                                       |
+| `ignoreList`               | `[]`    | 忽略列表（string 前缀匹配 / RegExp）                             |
+| `maxRepeat`                | `5`     | 最大重复次数（预留）                                             |
 
 ---
 
 ## 与 的差异
 
-| 维度 | | plugin-error | 说明 |
-|---|---|---|---|
-| 架构 | 单体 `ErrorManager` 类，耦合全局变量 | 三模块拆分（capture / cache / error-manager），依赖注入 | 可独立启停、替换、测试 |
-| 事件捕获 | 直接覆写 `window.onerror`，不可逆 | `createErrorCapture` 基于 WeakMap 多订阅，stop 恢复 | 多实例安全 |
-| 多实例 | 单一全局实例 (`SysInstance`) | 每次 `createErrorPlugin()` 创建独立实例 | 天然支持多实例 |
-| 生命周期 | 无显式启停 | `start()`/`stop()` + `capture.start()`/`capture.stop()` | 运行时可动态控制 |
-| 栈解析 | 内联正则提取 resourceUrl / rowNum / colNum | `parseErrorStack()` 独立函数（`@monitor/protocol`） | 可复用、可单独测试 |
-| 去重 | 仅 `isExist` 内容去重（遍历队列） | 双重：`isExist` 内容去重 + `isDuplicate` 时间窗口去重 | 更精细的重复控制 |
-| 过滤链 | `noScriptError` → `filters[]` → `ignoreList.js` → `onErrorPush` | 扩展为 `beforeSend` / `filter` / `noScriptError` / `filters` / `ignoreList` / `onErrorPush` 六层 | 更丰富的过滤能力 |
-| 限流 | 内嵌在 `send()` 的 `comboReport` 闭包中 | `checkRateLimit()` 独立方法 | 逻辑清晰、可测试 |
-| 发送方式 | 内联 `doSend` → `Ajax`（耦合 XHR） | `TransportRequest` 抽象 → `transport.send()` | 传输层可替换 |
-| 缓存 | `DB` 模块，webVersion 分桶 | `StorageLike` 接口 + key 带 webVersion | 支持非浏览器环境 |
-| 缓存读取时机 | 延迟 4000ms | 延迟 4000ms（`checkCache()`） | 行为对齐 |
-| 页面离开 | 自动 patch `window.onbeforeunload` | `detectLeave()` + 显式 `handlePageLeave()` | 两种方式可选 |
-| 远程配置 | `success: cfgManager.handleRemoteConfig(res)` | `sendErrors` 成功后调用 `handleRemoteConfig(response)` | 行为对齐 |
-| 自定义事件 | `monitorErrDetected` CustomEvent + IE9 polyfill | `dispatchErrorEvent()` + IE9 fallback | 行为对齐 |
-| SDK 自身错误 | `reportSystemError` / `reportSystemWarn` → SysInstance | 同名方法 → 自身 `addError` 管线 | 行为对齐 |
-| 单条长度限制 | `content.length >= maxSize` → 丢弃 | 同 | 行为对齐 |
-| `report()` 方法 | `push() + send(true)` | `addError() + sendErrors(true)` | 行为对齐 |
-| 类型安全 | JavaScript（无类型） | TypeScript（完整类型） | 编译时保证 |
-| 测试覆盖 | - | 23 个单元测试 | 覆盖所有核心流程 |
+| 维度            |                                                                 | plugin-error                                                                                     | 说明                   |
+| --------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------- |
+| 架构            | 单体 `ErrorManager` 类，耦合全局变量                            | 三模块拆分（capture / cache / error-manager），依赖注入                                          | 可独立启停、替换、测试 |
+| 事件捕获        | 直接覆写 `window.onerror`，不可逆                               | `createErrorCapture` 基于 WeakMap 多订阅，stop 恢复                                              | 多实例安全             |
+| 多实例          | 单一全局实例 (`SysInstance`)                                    | 每次 `createErrorPlugin()` 创建独立实例                                                          | 天然支持多实例         |
+| 生命周期        | 无显式启停                                                      | `start()`/`stop()` + `capture.start()`/`capture.stop()`                                          | 运行时可动态控制       |
+| 栈解析          | 内联正则提取 resourceUrl / rowNum / colNum                      | `parseErrorStack()` 独立函数（`@monitor/protocol`）                                              | 可复用、可单独测试     |
+| 去重            | 仅 `isExist` 内容去重（遍历队列）                               | 双重：`isExist` 内容去重 + `isDuplicate` 时间窗口去重                                            | 更精细的重复控制       |
+| 过滤链          | `noScriptError` → `filters[]` → `ignoreList.js` → `onErrorPush` | 扩展为 `beforeSend` / `filter` / `noScriptError` / `filters` / `ignoreList` / `onErrorPush` 六层 | 更丰富的过滤能力       |
+| 限流            | 内嵌在 `send()` 的 `comboReport` 闭包中                         | `checkRateLimit()` 独立方法                                                                      | 逻辑清晰、可测试       |
+| 发送方式        | 内联 `doSend` → `Ajax`（耦合 XHR）                              | `TransportRequest` 抽象 → `transport.send()`                                                     | 传输层可替换           |
+| 缓存            | `DB` 模块，webVersion 分桶                                      | `StorageLike` 接口 + key 带 webVersion                                                           | 支持非浏览器环境       |
+| 缓存读取时机    | 延迟 4000ms                                                     | 延迟 4000ms（`checkCache()`）                                                                    | 行为对齐               |
+| 页面离开        | 自动 patch `window.onbeforeunload`                              | `detectLeave()` + 显式 `handlePageLeave()`                                                       | 两种方式可选           |
+| 远程配置        | `success: cfgManager.handleRemoteConfig(res)`                   | `sendErrors` 成功后调用 `handleRemoteConfig(response)`                                           | 行为对齐               |
+| 自定义事件      | `monitorErrDetected` CustomEvent + IE9 polyfill                 | `dispatchErrorEvent()` + IE9 fallback                                                            | 行为对齐               |
+| SDK 自身错误    | `reportSystemError` / `reportSystemWarn` → SysInstance          | 同名方法 → 自身 `addError` 管线                                                                  | 行为对齐               |
+| 单条长度限制    | `content.length >= maxSize` → 丢弃                              | 同                                                                                               | 行为对齐               |
+| `report()` 方法 | `push() + send(true)`                                           | `addError() + sendErrors(true)`                                                                  | 行为对齐               |
+| 类型安全        | JavaScript（无类型）                                            | TypeScript（完整类型）                                                                           | 编译时保证             |
+| 测试覆盖        | -                                                               | 23 个单元测试                                                                                    | 覆盖所有核心流程       |
 
 ### 未对齐项（有意设计差异）
 
-| 差异 | 说明 |
-|---|---|
-| 日志 | 明确排除，`toJson` / `._log` 不实现 |
-| 资源错误 | 由独立 `plugin-resource` 包负责，`_pushResource` 不在此插件 |
-| `SysInstance` | 新架构无全局单例概念，`reportSystemError` 通过自身管线自上报 |
-| `xhrRewritten` | 传输层抽象自动处理 XHR 重写，无需显式传参 |
-| `combo` 默认值 | 新架构显式 `combo: false` |
-| `traceid` 字段 | 新增字段，无 |
+| 差异           | 说明                                                         |
+| -------------- | ------------------------------------------------------------ |
+| 日志           | 明确排除，`toJson` / `._log` 不实现                          |
+| 资源错误       | 由独立 `plugin-resource` 包负责，`_pushResource` 不在此插件  |
+| `SysInstance`  | 新架构无全局单例概念，`reportSystemError` 通过自身管线自上报 |
+| `xhrRewritten` | 传输层抽象自动处理 XHR 重写，无需显式传参                    |
+| `combo` 默认值 | 新架构显式 `combo: false`                                    |
+| `traceid` 字段 | 新增字段，无                                                 |
 
 ---
 

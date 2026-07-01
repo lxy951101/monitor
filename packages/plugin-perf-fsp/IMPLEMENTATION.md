@@ -158,11 +158,11 @@ CLS 增量     = 受影响面积比 × 单次位移比率
 
 CLS 校准后的上报数据额外包含：
 
-| 字段 | 含义 |
-|------|------|
-| `ffp_page_loaded` | 是否满足填充+触底 |
-| `ffp_loaded_time` | 首次达标时间 |
-| `ffp_page_stable` | 页面布局是否稳定 |
+| 字段                    | 含义                             |
+| ----------------------- | -------------------------------- |
+| `ffp_page_loaded`       | 是否满足填充+触底                |
+| `ffp_loaded_time`       | 首次达标时间                     |
+| `ffp_page_stable`       | 页面布局是否稳定                 |
 | `ffp_loaded_stable_gap` | 从加载完成到布局稳定的间隔（ms） |
 
 ---
@@ -197,49 +197,49 @@ flowchart TD
 
 ## 关键常量
 
-| 常量 | 值 | 说明 |
-|------|------|------|
-| `X_CUBE_NUM` | 3 | X 轴宫格数 |
-| `Y_CUBE_NUM` | 6 | Y 轴宫格数 |
-| `CUBE_COUNT` | 18 | 总宫格数 |
-| `FILL_CUBE_NUM` | 17 | 填充率达标阈值（≥17/18） |
-| `BOTTOM_SIZE` | 50 | 底部检测区域高度（px） |
-| `BOTTOM_POINT_NUM` | 9 | 底部采样点数 |
-| 宫格内采样点 | 3×3 = 9 | 每个宫格初始检测时的采样密度 |
-| 超时时间 | 5000ms | DOM 变更静默超时 |
-| 最大重置次数 | 10 | 前 10 次 DOM 变更可重置计时器 |
-| CLS 轮询周期 | 200ms | CLS 稳定性检测间隔 |
-| CLS 阈值 | 0.02 | CLS 超标阈值 |
-| CLS 最大周期 | 5 | 连续稳定周期数 |
+| 常量               | 值      | 说明                          |
+| ------------------ | ------- | ----------------------------- |
+| `X_CUBE_NUM`       | 3       | X 轴宫格数                    |
+| `Y_CUBE_NUM`       | 6       | Y 轴宫格数                    |
+| `CUBE_COUNT`       | 18      | 总宫格数                      |
+| `FILL_CUBE_NUM`    | 17      | 填充率达标阈值（≥17/18）      |
+| `BOTTOM_SIZE`      | 50      | 底部检测区域高度（px）        |
+| `BOTTOM_POINT_NUM` | 9       | 底部采样点数                  |
+| 宫格内采样点       | 3×3 = 9 | 每个宫格初始检测时的采样密度  |
+| 超时时间           | 5000ms  | DOM 变更静默超时              |
+| 最大重置次数       | 10      | 前 10 次 DOM 变更可重置计时器 |
+| CLS 轮询周期       | 200ms   | CLS 稳定性检测间隔            |
+| CLS 阈值           | 0.02    | CLS 超标阈值                  |
+| CLS 最大周期       | 5       | 连续稳定周期数                |
 
 ---
 
 ## 上报状态
 
-| 状态 | 含义 |
-|------|------|
-| `start` | 秒开检测开始 |
-| `success` | 秒开检测成功（满足填充+触底，且 CLS 稳定） |
-| `timeout` | 超时未满足条件，兜底上报 |
-| `hidden` | 页面退入后台，停止检测 |
-| `interact` | 用户交互（click/wheel/touchmove），提前终止检测 |
+| 状态         | 含义                                                        |
+| ------------ | ----------------------------------------------------------- |
+| `start`      | 秒开检测开始                                                |
+| `success`    | 秒开检测成功（满足填充+触底，且 CLS 稳定）                  |
+| `timeout`    | 超时未满足条件，兜底上报                                    |
+| `hidden`     | 页面退入后台，停止检测                                      |
+| `interact`   | 用户交互（click/wheel/touchmove），提前终止检测             |
 | `notsupport` | 环境不支持（缺少 `elementsFromPoint` / `MutationObserver`） |
-| `error` | 检测过程中发生异常 |
+| `error`      | 检测过程中发生异常                                          |
 
 ---
 
 ## 与 的差异及对齐
 
-| 维度 | | plugin-perf-fsp | 对齐情况 |
-|------|--------|------------------|----------|
-| 初始检测阈值 | `> 17`（需 18/18） | `> 17`（需 18/18） | ✅ 已对齐 |
-| 动态检测阈值 | `>= 17` | `>= 17` | ✅ 一致 |
+| 维度                |                                           | plugin-perf-fsp                             | 对齐情况  |
+| ------------------- | ----------------------------------------- | ------------------------------------------- | --------- |
+| 初始检测阈值        | `> 17`（需 18/18）                        | `> 17`（需 18/18）                          | ✅ 已对齐 |
+| 动态检测阈值        | `>= 17`                                   | `>= 17`                                     | ✅ 一致   |
 | 超时 pageLoadedTime | 区分 mutationCount=0 情况；用首次达标时间 | 区分 mutationCount=0 情况；保留首次达标时间 | ✅ 已对齐 |
-| CLS 视窗尺寸 | `clientWidth/clientHeight` | `clientWidth/clientHeight`（优先） | ✅ 已对齐 |
-| 元素合法性缓存 | `elementValidationMap` | `Map<Element, boolean>` | ✅ 已对齐 |
-| shouldIgnore 缓存 | `__fspIgnored` 属性 | `__fspIgnored` 属性 | ✅ 已对齐 |
-| defer body 检查 | 检查 body 存在性 | 检查 body 存在性 | ✅ 已对齐 |
-| containerBridge key | 3 个 key | 4 个 key（多 `bridge`） | 🟡 增强 |
+| CLS 视窗尺寸        | `clientWidth/clientHeight`                | `clientWidth/clientHeight`（优先）          | ✅ 已对齐 |
+| 元素合法性缓存      | `elementValidationMap`                    | `Map<Element, boolean>`                     | ✅ 已对齐 |
+| shouldIgnore 缓存   | `__fspIgnored` 属性                       | `__fspIgnored` 属性                         | ✅ 已对齐 |
+| defer body 检查     | 检查 body 存在性                          | 检查 body 存在性                            | ✅ 已对齐 |
+| containerBridge key | 3 个 key                                  | 4 个 key（多 `bridge`）                     | 🟡 增强   |
 
 ---
 

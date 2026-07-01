@@ -4,7 +4,7 @@
 
 plugin-pv 是 `@monitor/plugin-pv` 的页面浏览（Page View）上报插件。它负责在页面加载时自动上报一次 PV，并在 SPA（单页应用）路由切换时持续跟踪页面变化。
 
-该插件参考  的 PV 模块实现，在核心思路上保持一致，同时在架构、可测试性和可配置性方面做了增强。
+该插件参考 的 PV 模块实现，在核心思路上保持一致，同时在架构、可测试性和可配置性方面做了增强。
 
 ---
 
@@ -48,17 +48,17 @@ sequenceDiagram
 
 ```typescript
 interface PvModel {
-  project: string;    // 项目名
-  pageurl: string;    // 页面 URL
-  pageId: string;     // 页面唯一标识
-  timestamp: number;  // 时间戳
-  region: string;     // 地域
-  operator: string;   // 运营商
-  network: string;    // 网络类型
-  container: string;  // 容器标识
-  os: string;         // 操作系统
-  unionid: string;    // Union ID
-  ctags: string;      // 自定义标签（JSON 字符串）
+  project: string; // 项目名
+  pageurl: string; // 页面 URL
+  pageId: string; // 页面唯一标识
+  timestamp: number; // 时间戳
+  region: string; // 地域
+  operator: string; // 运营商
+  network: string; // 网络类型
+  container: string; // 容器标识
+  os: string; // 操作系统
+  unionid: string; // Union ID
+  ctags: string; // 自定义标签（JSON 字符串）
 }
 ```
 
@@ -234,13 +234,13 @@ flowchart LR
 
 PV 上报的核心状态机：
 
-| 方法 | 职责 |
-|------|------|
-| `start()` | 激活管理器，`autoReport !== false` 时自动发送一次 PV |
-| `stop()` | 停用管理器，清除防抖 timer |
-| `resetPv(opts)` | 更新后续 PV 的 `pageUrl` / `pageId` / `ctags` 基线值 |
-| `report(opts)` | 发送一次 PV（支持 `delay` 防抖和 `onResponse` 回调） |
-| `reportInBackground()` | 后台自动上报，失败静默 |
+| 方法                   | 职责                                                 |
+| ---------------------- | ---------------------------------------------------- |
+| `start()`              | 激活管理器，`autoReport !== false` 时自动发送一次 PV |
+| `stop()`               | 停用管理器，清除防抖 timer                           |
+| `resetPv(opts)`        | 更新后续 PV 的 `pageUrl` / `pageId` / `ctags` 基线值 |
+| `report(opts)`         | 发送一次 PV（支持 `delay` 防抖和 `onResponse` 回调） |
+| `reportInBackground()` | 后台自动上报，失败静默                               |
 
 **设计要点**：
 
@@ -323,31 +323,31 @@ flowchart TD
 
 ## 关键常量
 
-| 常量 | 默认值 | 说明 |
-|------|--------|------|
-| 防抖延迟 | 200ms | SPA 路由切换时 PV 上报的防抖时间 |
-| API 路径 | `/api/pvts` | PV 上报的后端 endpoint |
-| 请求方法 | POST | `application/x-www-form-urlencoded` |
-| 默认 autoReport | `true` | 从 `cfgManager.getConfig("autoCatch").pv` 读取 |
+| 常量            | 默认值      | 说明                                           |
+| --------------- | ----------- | ---------------------------------------------- |
+| 防抖延迟        | 200ms       | SPA 路由切换时 PV 上报的防抖时间               |
+| API 路径        | `/api/pvts` | PV 上报的后端 endpoint                         |
+| 请求方法        | POST        | `application/x-www-form-urlencoded`            |
+| 默认 autoReport | `true`      | 从 `cfgManager.getConfig("autoCatch").pv` 读取 |
 
 ---
 
 ## 与 的差异
 
-| 维度 | | plugin-pv | 说明 |
-|------|--------|-----------|------|
-| 架构模式 | 单体 类，PV 为内部模块 | 独立插件，遵循 Plugin 协议 (`start/stop`) | 可独立启停、组合 |
-| History Hook | 直接覆写 `window.history.pushState/replaceState`，永远不恢复 | `createHistoryRouteWatcher` 仅首次订阅时覆写，无人订阅时自动恢复 | 非侵入式，多实例安全 |
-| 请求方式 | POST，参数全部在 URL query string | POST，公共参数在 URL，业务数据在 body | 语义更清晰 |
-| 防抖机制 | `resetPv({ delay: true })` 中 200ms 防抖 | `report({ delay: true })` 中 200ms 防抖 | 防抖收敛到上报层 |
-| ctags | 始终 `JSON.stringify(opts.ctags)` | 支持 string/object 两种形式，支持合并 | 更灵活的自定义标签 |
-| 远程配置 | `success: cfgManager.handleRemoteConfig(res)` | `onResponse` 回调注入 | 解耦，可自定义处理逻辑 |
-| 扩展信息 | `cfgManager.getExtension()` 统一读取 `region/operator/network/container/os/unionId` | 通过 `PvReportOptions` 逐项传入 + URL 公共参数自动携带 | 更细粒度的控制 |
-| 路由监听模式 | `hash` / `history` 独立开关 | 增加 `auto` 模式（同时监听） | 覆盖更多 SPA 框架 |
-| 可测试性 | 依赖全局 `window` | `RouteWatcherEnv` 接口 + `send`/`cfgManager` 注入 | 全部 13 个单元测试 |
-| 多实例 | 单实例 (`this.pvManager`) | `createPvPlugin()` 每次创建独立实例 | 天然支持多实例 |
-| 生命周期 | 无显式启停 | `start()`/`stop()` 完整生命周期 | 运行时可动态控制 |
-| timestamp | 固定 `Date.now()`，不可覆盖 | `PvReportOptions.timestamp` 允许外部传入 | 支持回放/测试 |
+| 维度         |                                                                                     | plugin-pv                                                        | 说明                   |
+| ------------ | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------- |
+| 架构模式     | 单体 类，PV 为内部模块                                                              | 独立插件，遵循 Plugin 协议 (`start/stop`)                        | 可独立启停、组合       |
+| History Hook | 直接覆写 `window.history.pushState/replaceState`，永远不恢复                        | `createHistoryRouteWatcher` 仅首次订阅时覆写，无人订阅时自动恢复 | 非侵入式，多实例安全   |
+| 请求方式     | POST，参数全部在 URL query string                                                   | POST，公共参数在 URL，业务数据在 body                            | 语义更清晰             |
+| 防抖机制     | `resetPv({ delay: true })` 中 200ms 防抖                                            | `report({ delay: true })` 中 200ms 防抖                          | 防抖收敛到上报层       |
+| ctags        | 始终 `JSON.stringify(opts.ctags)`                                                   | 支持 string/object 两种形式，支持合并                            | 更灵活的自定义标签     |
+| 远程配置     | `success: cfgManager.handleRemoteConfig(res)`                                       | `onResponse` 回调注入                                            | 解耦，可自定义处理逻辑 |
+| 扩展信息     | `cfgManager.getExtension()` 统一读取 `region/operator/network/container/os/unionId` | 通过 `PvReportOptions` 逐项传入 + URL 公共参数自动携带           | 更细粒度的控制         |
+| 路由监听模式 | `hash` / `history` 独立开关                                                         | 增加 `auto` 模式（同时监听）                                     | 覆盖更多 SPA 框架      |
+| 可测试性     | 依赖全局 `window`                                                                   | `RouteWatcherEnv` 接口 + `send`/`cfgManager` 注入                | 全部 13 个单元测试     |
+| 多实例       | 单实例 (`this.pvManager`)                                                           | `createPvPlugin()` 每次创建独立实例                              | 天然支持多实例         |
+| 生命周期     | 无显式启停                                                                          | `start()`/`stop()` 完整生命周期                                  | 运行时可动态控制       |
+| timestamp    | 固定 `Date.now()`，不可覆盖                                                         | `PvReportOptions.timestamp` 允许外部传入                         | 支持回放/测试          |
 
 ---
 

@@ -15,11 +15,11 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "oxfmt": "^0.57.0",
+    "oxlint": "^1.72.0",
     "typescript": "^7.0.1-rc",
     "vite": "^8.1.0",
-    "vitest": "^4.1.0",
-    "oxlint": "^1.72.0",
-    "oxfmt": "^0.57.0"
+    "vitest": "^4.1.0"
   },
   "packageManager": "pnpm@9.0.0"
 }

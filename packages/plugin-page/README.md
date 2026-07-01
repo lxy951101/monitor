@@ -1,6 +1,6 @@
 # plugin-page 实现原理
 
-> 对齐  中 `PageManager` + `FirstScreenManager` 的核心能力，
+> 对齐 中 `PageManager` + `FirstScreenManager` 的核心能力，
 > 按 monitor 项目架构模块化拆分为独立可测试的单元。
 
 ## 整体架构
@@ -38,17 +38,17 @@
 
 与 保持 27 点位数组一致：
 
-| 索引 | 含义 | 来源 |
-|------|------|------|
-| 0 | 占位（始终为 0） | - |
-| 1-19 | W3C Navigation Timing 各阶段偏移 | `performance.timing` |
-| 20 | DNS 耗时 | `domainLookupEnd - domainLookupStart` |
-| 21 | TCP 耗时 | `connectEnd - connectStart` |
-| 22 | 下载耗时 | `responseEnd - requestStart` |
-| 23 | FP (First Paint) | `performance.getEntriesByType("paint")` |
-| 24 | FCP (First Contentful Paint) | 同上 |
-| 25 | FST (首屏时间) | FirstScreenObserver 计算填入 |
-| 26 | FCP（首屏级） | FirstScreenObserver 计算填入 |
+| 索引 | 含义                             | 来源                                    |
+| ---- | -------------------------------- | --------------------------------------- |
+| 0    | 占位（始终为 0）                 | -                                       |
+| 1-19 | W3C Navigation Timing 各阶段偏移 | `performance.timing`                    |
+| 20   | DNS 耗时                         | `domainLookupEnd - domainLookupStart`   |
+| 21   | TCP 耗时                         | `connectEnd - connectStart`             |
+| 22   | 下载耗时                         | `responseEnd - requestStart`            |
+| 23   | FP (First Paint)                 | `performance.getEntriesByType("paint")` |
+| 24   | FCP (First Contentful Paint)     | 同上                                    |
+| 25   | FST (首屏时间)                   | FirstScreenObserver 计算填入            |
+| 26   | FCP（首屏级）                    | FirstScreenObserver 计算填入            |
 
 ### 核心函数
 
@@ -188,14 +188,14 @@ startRoute(path)                      stopRoute(oldPath)
 ```typescript
 const routeFst = new RouteFirstScreenManager(
   (result) => pageManager.reportRouteFst(result.fst, result.path),
-  { stopTime: 3000, maxOutCount: 15 }
+  { stopTime: 3000, maxOutCount: 15 },
 );
 
 startRouteFst({
   routeMode: "auto",
   onRoute: (path, prevPath) => {
     routeFst.switchRoute(prevPath, path);
-  }
+  },
 });
 ```
 
@@ -219,6 +219,7 @@ startRouteFst({
 ```
 
 采样策略（）：
+
 - **汇总数据**：按 `fstPerfSample` 采样率上报
 - **慢访问个案**：FST > 1s 时，按阶梯采样率（<2s: 5%, ≥2s: 10%）记录每个资源的详细耗时
 
@@ -229,35 +230,37 @@ createPagePlugin(options: PagePluginOptions): Plugin
 ```
 
 启动时：
+
 1. 创建 `PageManager` 实例
 2. 调用 `setInitConfig()` 保存初始 pageUrl/project
 3. 调用 `setUserReady()` 标记就绪
 4. 若传入 timing 则直接调用 `reportNavigationTiming(timing)`
 
 暴露 `manager` 属性供外部调用：
+
 - `manager.addPoint({ position, duration })` — 自定义测速点
 - `manager.reportRouteFst(fst, pageUrl)` — 路由 FST 上报
 - `manager.parsePageTime(senseTime)` — 手动触发完整测速解析
 
 ## 七、与 的差异总结
 
-| 维度 | | plugin-page |
-|------|--------|-------------|
-| 上报方式 | GET + QueryString | POST（兼容旧）+ GET（新增完整点位） |
-| 点位覆盖 | 27 + Titans | 27 完整覆盖 |
-| Paint Timing | ✅ | ✅ |
-| 缓存检测 | ✅ | ✅ |
-| 防抖延迟 | ✅ | ✅ |
-| 用户就绪 | ✅ | ✅ |
-| FST MutationObserver | ✅ | ✅ |
-| FST PerformanceObserver | ✅ | ✅ |
-| 首屏外停止 | ✅ | ✅ |
-| 用户交互停止 | ✅ | ✅ |
-| 元素 ignore 属性 | ✅ monitor-ignore | ✅ 可配置 |
-| SPA 路由 FST | ✅ | ✅ RouteFirstScreenManager |
-| 资源汇总分析 | ✅ | ✅ analyzeFirstScreenResources |
-| 慢访问个案 | ✅ | ✅ |
-| Titans 集成 | ✅ | ❌ (平台特有) |
+| 维度                    |                   | plugin-page                         |
+| ----------------------- | ----------------- | ----------------------------------- |
+| 上报方式                | GET + QueryString | POST（兼容旧）+ GET（新增完整点位） |
+| 点位覆盖                | 27 + Titans       | 27 完整覆盖                         |
+| Paint Timing            | ✅                | ✅                                  |
+| 缓存检测                | ✅                | ✅                                  |
+| 防抖延迟                | ✅                | ✅                                  |
+| 用户就绪                | ✅                | ✅                                  |
+| FST MutationObserver    | ✅                | ✅                                  |
+| FST PerformanceObserver | ✅                | ✅                                  |
+| 首屏外停止              | ✅                | ✅                                  |
+| 用户交互停止            | ✅                | ✅                                  |
+| 元素 ignore 属性        | ✅ monitor-ignore | ✅ 可配置                           |
+| SPA 路由 FST            | ✅                | ✅ RouteFirstScreenManager          |
+| 资源汇总分析            | ✅                | ✅ analyzeFirstScreenResources      |
+| 慢访问个案              | ✅                | ✅                                  |
+| Titans 集成             | ✅                | ❌ (平台特有)                       |
 
 ## 八、上报数据格式
 

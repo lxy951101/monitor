@@ -67,6 +67,7 @@ const transport = createBeaconTransport();
 **`createBridgeTransport`** — 通用桥接，查找到对应方法后包装为 `Transport` 接口。
 
 **`createContainerBridgeReporter`** — 高级桥接上报器：
+
 1. 按优先级尝试 `preferredMethod` + `fallbackMethods`
 2. 桥可用 → 先补发缓存 → 发送当前事件
 3. 桥不可用 → 写入 `localStorage` 缓存（上限默认 50）
@@ -76,7 +77,7 @@ const reporter = createContainerBridgeReporter({
   preferredMethod: "ffp.record",
   fallbackMethods: ["sendBabelLog"],
   bridge: window.KNB,
-  storage: localStorage
+  storage: localStorage,
 });
 await reporter.send({ method: "POST", url: "bridge://event", body: data });
 ```
@@ -85,15 +86,16 @@ await reporter.send({ method: "POST", url: "bridge://event", body: data });
 
 可配置的批量/防抖发送队列。
 
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `maxLength` | — | 达到此数量立即 flush |
-| `delay` | — | 防抖延迟，> 0 时实际不低于 `minDelay` |
-| `minDelay` | `1000` | 延迟下限（ms），防止过于频繁的发送 |
-| `send` | — | 发送回调 |
-| `onFail` | — | 发送失败回调 |
+| 参数        | 默认值 | 说明                                  |
+| ----------- | ------ | ------------------------------------- |
+| `maxLength` | —      | 达到此数量立即 flush                  |
+| `delay`     | —      | 防抖延迟，> 0 时实际不低于 `minDelay` |
+| `minDelay`  | `1000` | 延迟下限（ms），防止过于频繁的发送    |
+| `send`      | —      | 发送回调                              |
+| `onFail`    | —      | 发送失败回调                          |
 
 **内部机制：**
+
 - **批量发送：** `add()` 推入内部数组，满 `maxLength` 时触发 flush
 - **防抖：** 未满时通过 `setTimeout(delay)` 延迟发送
 - **失败回滚：** 发送失败后数据 `unshift` 回队列头部

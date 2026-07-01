@@ -83,12 +83,12 @@ sequenceDiagram
 
 **关键设计决策：**
 
-| 决策 | 说明 |
-|------|------|
-| FIFO 启动 | `start()` 按注册顺序逐一调用插件，保证依赖靠前的插件先初始化 |
-| LIFO 停止 | `stop()` 按逆序调用，后注册的先清理，避免依赖断裂 |
-| 延迟注册 | `start()` 之后再调 `use()` 的插件，立即执行 `start(context)` |
-| 幂等 start | 重复调用 `start()` 被忽略，防止重复初始化 |
+| 决策               | 说明                                                                 |
+| ------------------ | -------------------------------------------------------------------- |
+| FIFO 启动          | `start()` 按注册顺序逐一调用插件，保证依赖靠前的插件先初始化         |
+| LIFO 停止          | `stop()` 按逆序调用，后注册的先清理，避免依赖断裂                    |
+| 延迟注册           | `start()` 之后再调 `use()` 的插件，立即执行 `start(context)`         |
+| 幂等 start         | 重复调用 `start()` 被忽略，防止重复初始化                            |
 | 部分公开 `onReady` | 错误、PV、Metric 等插件通过 `onReady` 回调暴露内部 Manager 给 SDK 层 |
 
 ### 2.2 MonitorContext 依赖注入
@@ -97,14 +97,15 @@ sequenceDiagram
 
 ```typescript
 interface MonitorContext {
-  cfgManager: CfgManager;   // 配置管理 + 采样判断
-  eventBus: EventBus;        // 事件总线（松耦合跨插件通信）
-  transport: Transport;      // 传输通道（XHR/Beacon/Bridge）
-  logger: Logger;            // 开发模式日志
+  cfgManager: CfgManager; // 配置管理 + 采样判断
+  eventBus: EventBus; // 事件总线（松耦合跨插件通信）
+  transport: Transport; // 传输通道（XHR/Beacon/Bridge）
+  logger: Logger; // 开发模式日志
 }
 ```
 
 **设计优势：**
+
 - 所有外部依赖可注入（XHR 构造函数、localStorage、navigator、fetch、history 等），便于单元测试
 - 无全局单例污染——通过 `Monitor.create(config)` 可创建完全独立的客户端实例
 
@@ -135,6 +136,7 @@ flowchart TD
 ```
 
 **两种队列项格式：**
+
 - 元组：`["start", config]` → `monitor.start(config)`
 - 函数：`function(m) { m.debug(); }` → 以 namespace 为参数调用
 
@@ -143,8 +145,8 @@ flowchart TD
 `MonitorClient.start()` 的第一步就是检测 User-Agent 是否为爬虫：
 
 ```
-已知爬虫列表: baiduspider | googlebot | bingbot | 360spider | sogou | 
-             yisouspider | bytespider | petalbot | slurp | yandexbot | 
+已知爬虫列表: baiduspider | googlebot | bingbot | 360spider | sogou |
+             yisouspider | bytespider | petalbot | slurp | yandexbot |
              duckduckbot | facebot | twitterbot | ahrefsbot
 ```
 
@@ -158,15 +160,15 @@ flowchart TD
 
 不同上报通道使用**完全不同的编码格式**，全部手写实现（无第三方依赖）：
 
-| 通道 | 请求方式 | Content-Type | 编码策略 |
-|------|---------|-------------|---------|
-| PV | GET | — | URL Query 参数 |
-| 错误 (logts) | POST | `application/x-www-form-urlencoded` | `c=encodeURIComponent(JSON)` |
-| 资源文本 (dev) | POST | `application/json` | JSON |
-| 资源 Protobuf (prod) | POST | `application/octet-stream` | **自研 Protobuf 编码器** |
-| 页面速度 | GET | — | 管道分隔的 27 点数组 |
-| 自定义指标 | POST | `application/json` | JSON |
-| 性能指标 (FSP/IRD/SHR) | POST | `application/json` | JSON PerfLogPayload |
+| 通道                   | 请求方式 | Content-Type                        | 编码策略                     |
+| ---------------------- | -------- | ----------------------------------- | ---------------------------- |
+| PV                     | GET      | —                                   | URL Query 参数               |
+| 错误 (logts)           | POST     | `application/x-www-form-urlencoded` | `c=encodeURIComponent(JSON)` |
+| 资源文本 (dev)         | POST     | `application/json`                  | JSON                         |
+| 资源 Protobuf (prod)   | POST     | `application/octet-stream`          | **自研 Protobuf 编码器**     |
+| 页面速度               | GET      | —                                   | 管道分隔的 27 点数组         |
+| 自定义指标             | POST     | `application/json`                  | JSON                         |
+| 性能指标 (FSP/IRD/SHR) | POST     | `application/json`                  | JSON PerfLogPayload          |
 
 ### 3.2 自研 Protobuf 编码器（无第三方依赖）
 
@@ -185,20 +187,21 @@ class ProtobufWriter {
 
 **资源批次顶层结构（protobuf）：**
 
-| Field | Tag 值 | Wire Type |
-|-------|--------|-----------|
-| infos (repeated BatchInfo) | 1 | 2 (ldelim) |
-| region | 2 | 2 |
-| operator | 3 | 2 |
-| network | 4 | 2 |
-| container | 5 | 2 |
-| os | 6 | 2 |
-| connectType | 7 | 2 |
-| unionId | 8 | 2 |
+| Field                      | Tag 值 | Wire Type  |
+| -------------------------- | ------ | ---------- |
+| infos (repeated BatchInfo) | 1      | 2 (ldelim) |
+| region                     | 2      | 2          |
+| operator                   | 3      | 2          |
+| network                    | 4      | 2          |
+| container                  | 5      | 2          |
+| os                         | 6      | 2          |
+| connectType                | 7      | 2          |
+| unionId                    | 8      | 2          |
 
 **BatchInfo 内部 17 个字段**，Tag 号从 10 到 138（非连续）。
 
 **难点：**
+
 - 需要理解 Protobuf wire format（Varint 编码、field number << 3 | wire_type 的 tag 计算）
 - 必须与后端 Protobuf schema 精确匹配，不能使用标准 protobuf 库
 - 生产环境发送 Protobuf；失败时自动降级到 JSON
@@ -217,6 +220,7 @@ class ProtobufWriter {
 - 索引 23-26：First Paint / FCP / FST / FCP（首屏级）
 
 **难点：**
+
 - 派生指标（dns/tcp/download）优先使用预计算值，未提供时从原始时间点**实时计算**
 - Paint/FST/FCP 指标**仅当实际采集到时**才写入对应索引位置
 - `normalize()` 将非法值（负数、Infinity、NaN）钳制为 0
@@ -246,12 +250,12 @@ flowchart TD
 
 远程下发的采样键名与 SDK 内部键名不同，通过 `remoteSamplingKeyMap` 映射：
 
-| 远程键 | SDK 内部键 |
-|--------|-----------|
-| performance | page |
-| request | api |
-| log | error |
-| resource | resource |
+| 远程键      | SDK 内部键 |
+| ----------- | ---------- |
+| performance | page       |
+| request     | api        |
+| log         | error      |
+| resource    | resource   |
 
 未知键进入 `custom` 桶，按自定义键直接匹配。
 
@@ -265,11 +269,11 @@ flowchart TD
 
 ### 5.1 三通道传输
 
-| 通道 | 场景 | 返回值 | 特点 |
-|------|------|--------|------|
-| XHR | 常规上报 | `{ ok, status, body }` | 有状态码、支持超时、可获取响应 |
-| Beacon | 页面卸载 | `{ ok: true, status: 0 }` | Fire-and-forget、浏览器保证发送、无法读状态 |
-| Bridge | 容器 JSBridge | `{ ok: true, status: 0 }` | 通过原生 Bridge 通信 |
+| 通道   | 场景          | 返回值                    | 特点                                        |
+| ------ | ------------- | ------------------------- | ------------------------------------------- |
+| XHR    | 常规上报      | `{ ok, status, body }`    | 有状态码、支持超时、可获取响应              |
+| Beacon | 页面卸载      | `{ ok: true, status: 0 }` | Fire-and-forget、浏览器保证发送、无法读状态 |
+| Bridge | 容器 JSBridge | `{ ok: true, status: 0 }` | 通过原生 Bridge 通信                        |
 
 ### 5.2 ReportQueue 批量与重试
 
@@ -292,6 +296,7 @@ flowchart TD
 ```
 
 **关键保护机制：**
+
 - **重入保护**：如果 `flush()` 正在执行中，并发调用设置 `needsFlush` 标志，当前 flush 完成后立即再次 flush
 - **失败回滚**：发送失败时将整个 batch 回滚到队列**头部**（`unshift`），保持原始顺序
 - **最小延迟**：`delay` 强制执行下限（默认 1000ms），防止过于激进的发送
@@ -308,6 +313,7 @@ flowchart TD
 ### 5.4 页面卸载时的 Beacon 降级
 
 错误插件在页面卸载时（`pagehide` / `beforeunload`）：
+
 - 合并当前队列 + 在途请求中的错误
 - 优先使用 `sendBeacon`（保证在页面关闭前发送）
 - 如果 Beacon 不可用，降级写入 localStorage
@@ -320,17 +326,19 @@ flowchart TD
 
 **双重去重机制：**
 
-| 机制 | 方法 | 作用 |
-|------|------|------|
-| 内容去重 | `isExist()` | 对比错误队列中的完整 content/rowNum/colNum，完全相同则丢弃 |
-| 键去重 | `isDuplicate()` | 在可配置时间窗口内，相同 `content + rowNum + colNum` 只保留一条 |
+| 机制     | 方法            | 作用                                                            |
+| -------- | --------------- | --------------------------------------------------------------- |
+| 内容去重 | `isExist()`     | 对比错误队列中的完整 content/rowNum/colNum，完全相同则丢弃      |
+| 键去重   | `isDuplicate()` | 在可配置时间窗口内，相同 `content + rowNum + colNum` 只保留一条 |
 
 **速率限制算法：**
+
 - 跟踪错误间隔的**中位数**和一个动态阈值
 - 在 `checkRateLimit` 中，**先计算 `timeSinceStart`，再重置**
 - 单个插件异常不影响后续监听器（EventBus emit 的 catch 块为空）
 
 **错误捕获多订阅模式：**
+
 ```
 window.onerror ────────────────────┬─→ ErrorManager (SDK)
                                    │
@@ -338,36 +346,44 @@ unhandledrejection ────────────────┤
                                    │
 console.error ─────────────────────┘
 ```
+
 使用 `WeakMap` 存储每个 `window` 对象的共享捕获状态，多个订阅者可以共享同一个 `window` 钩子。
 
 **在途请求保护：**
+
 - `sendErrors` 期间用 `cacheSending` Map 跟踪进行中的请求
 - 页面卸载时同时合并当前队列和 `cacheSending` 中的错误，防止丢失
 
 **远程采样响应：**
+
 - 错误上报成功后，从响应体中解析 `sampling` 字段
 - 调用 `cfgManager.applyRemoteSampling()` 动态更新采样率
 
 ### 6.2 资源插件 — 构造函数替换与双采样
 
 **XHR 拦截采用构造函数替换（非原型修补）：**
+
 ```typescript
 const OriginalXHR = window.XMLHttpRequest;
-window.XMLHttpRequest = PatchedXHR;  // 整个构造函数替换
+window.XMLHttpRequest = PatchedXHR; // 整个构造函数替换
 ```
+
 这比原型修补更彻底，但风险也更大——与页面上其他修改 `XMLHttpRequest` 的库可能冲突。
 
 **Fetch 拦截非侵入式：**
+
 - 替换 `window.fetch`
 - 拦截后**重新抛出**错误，保证标准错误处理仍然触发
 - `clone()` 响应体进行业务码解析，不消耗原始响应
 
 **双采样入口：**
+
 - `pushCall()` — 资源性能数据，使用 `sample` 采样率
 - `pushApi()` — XHR/Fetch 数据，使用 `sampleApi` 采样率
 - 两者独立控制，满足不同上报量的需求
 
 **图片监控：**
+
 - `PerformanceObserver` 监听资源条目，过滤 `img` 类型
 - 体积超出阈值（`fileSize * 1000` 字节）→ `IMAGE_SIZE_EXCEED`
 - 加载耗时超出 `maxDuration` → `IMAGE_DURATION_EXCEED`
@@ -397,40 +413,53 @@ window.XMLHttpRequest = PatchedXHR;  // 整个构造函数替换
 **CLS 稳定性校准（FSP-CLS）：**
 
 秒开成功后，启动额外的 CLS 观察：
+
 - 每 200ms 计算一个周期内的累计布局偏移 `cls >= 0.02`
 - 需要**连续 5 个周期**低于阈值才宣布页面稳定
 - CLS 分数 = 影响区域 × 位移比率
 
 **静态页面处理：**
+
 - 如果 `mutationCount === 0`（纯静态页面），`pageLoadedTime` 使用初始检查完成时间戳
 
 ### 6.4 交互响应延迟（IRD）— RAF 与超时竞态
 
 **竞态预防：**
+
 ```typescript
 let finished = false;
 
 // 两个通路同时启动，只有一个能触发
 requestAnimationFrame(() => {
-  if (!finished) { finished = true; report(); }
+  if (!finished) {
+    finished = true;
+    report();
+  }
 });
 setTimeout(() => {
-  if (!finished) { finished = true; report({ timeout: true }); }
+  if (!finished) {
+    finished = true;
+    report({ timeout: true });
+  }
 }, timeout);
 ```
+
 - RAF 先到 → 上报实际延迟
 - 超时先到 → 上报 `timeout: true`
 - 两个通路中只有一个能执行，`finished` 标志保证互斥
 
 **延迟计算：**
+
 ```
 delay = Math.max(0, nextFrameTime - touchEndTime)
 ```
+
 使用 `Math.max(0, ...)` 防止时钟异常导致负值。
 
 ### 6.5 首屏检测（FST）— MutationObserver + 元素评分
 
 **评分机制：**
+
 - MutationObserver 监听 DOM 变化
 - 对每个新增节点进行评分：可见面积 + 文本奖励
 - `ELEMENT_WEIGHT = 1`，`DEP_WEIGHT = 0`（子节点不累加）
@@ -438,10 +467,12 @@ delay = Math.max(0, nextFrameTime - touchEndTime)
 - `maxOutCount = 15`（视口外节点达到 15 个后提前停止）
 
 **FCP 模拟：**
+
 - 检测第一个包含可见文本或 `<img>` 的节点
 - 作为点 26（首屏级 FCP）写入上报数据
 
 **SPA 路由首屏：**
+
 - 为每个路由路径维护**独立的 MutationObserver**
 - 路由切换时停止上一个、启动下一个
 - `RouteFirstScreenManager` 管理多路由的首屏计算
@@ -449,31 +480,37 @@ delay = Math.max(0, nextFrameTime - touchEndTime)
 ### 6.6 滚动帧率（SHR）— 帧掉率计算
 
 **滚动检测：**
+
 - 监听 `scroll` 事件（捕获阶段）
 - 滚动期间启动 rAF 循环，记录每帧时间戳
 - 停止滚动判定：`lastScrollChangeTime + idleDelay(150ms)` 无新滚动事件
 
 **帧掉率计算：**
+
 ```
 frameDropRate = Σ max(0, frameGap - 16.7) / totalDuration × 1000
 ```
+
 - 只累积**正向超额**（超过 16.7ms 的部分）
 - "提前帧" 不抵消 "掉帧"——保守统计
 - 结果范围 0-1000
 
 **多滚动目标支持：**
+
 - 通过 `getScrollValue` 运行时检测不同目标（window / document / 可滚动容器）
 - 适配非全页滚动的业务场景
 
 ### 6.7 PV 插件 — SPA 路由感知
 
 **路由监听：**
+
 - 支持 `history` 模式（拦截 `pushState`/`replaceState` + `popstate`）
 - 支持 `hash` 模式（监听 `hashchange`）
 - `auto` 模式两种都启用
 - 路径去重：`parseRoutePath(newUrl) !== parseRoutePath(oldUrl)` 时才触发 PV
 
 **History 观察者多订阅共享：**
+
 - 使用 `WeakMap<history, HistoryWatcherState>` 管理共享状态
 - 多个订阅者共享同一套 history 拦截，避免重复 patch
 - **引用计数**：没有订阅者时恢复原生 `pushState`/`replaceState`
@@ -488,7 +525,7 @@ PerfCache (localStorage key: "__perf_cache")
    ├── fsp 上报失败 → cache.add()
    ├── ird 上报失败  → cache.add()
    └── shr 上报失败  → cache.add()
-   
+
 下次成功发送时 → cache.flush() → 逐条重试缓存记录
 ```
 
@@ -502,14 +539,14 @@ PerfCache (localStorage key: "__perf_cache")
 
 `mergeMonitorConfig(base, patch)` 实现深度合并：
 
-| patch 类型 | 行为 |
-|-----------|------|
-| `undefined` | 跳过，保留 base 值 |
-| 普通对象 | 递归合并 |
-| 数组 | **整体替换**（不合并元素） |
-| 函数 | 替换引用 |
-| RegExp | 替换引用 |
-| 原始值 | 替换 |
+| patch 类型  | 行为                       |
+| ----------- | -------------------------- |
+| `undefined` | 跳过，保留 base 值         |
+| 普通对象    | 递归合并                   |
+| 数组        | **整体替换**（不合并元素） |
+| 函数        | 替换引用                   |
+| RegExp      | 替换引用                   |
+| 原始值      | 替换                       |
 
 `resourceReg` 特殊处理：patch 中可以是字符串 → 自动 `new RegExp()`。
 
@@ -522,6 +559,7 @@ PerfCache (localStorage key: "__perf_cache")
 ### 7.3 devMode 自动切换
 
 当 `devMode: true` 且未指定 `reportBaseUrl` 时：
+
 - 自动调用 `getReportBaseUrl(true)` → `https://report-dev.example.com`
 - `protocol` 补丁可以替换 URL 协议（`https:` → `http:`）
 
@@ -547,6 +585,7 @@ const doubleWrapped = client.wrap(wrapped); // → 返回 wrapped（不重复包
 ### 8.2 SSR/Node 安全性
 
 所有与 DOM 交互的工具函数都检查全局变量是否存在：
+
 - `typeof window !== "undefined"`
 - `typeof document !== "undefined"`
 - `typeof navigator !== "undefined"`
@@ -559,16 +598,17 @@ const doubleWrapped = client.wrap(wrapped); // → 返回 wrapped（不重复包
 
 ### 9.1 自动化测试
 
-| 层级 | 工具 | 范围 |
-|------|------|------|
-| 类型检查 | `tsc --noEmit` | 所有 workspace 项目 |
-| 单元测试 | Vitest | 每个包的 `src/**/*.test.ts` |
-| 工作区测试 | Vitest Workspace | 跨 packages + apps |
-| 行数检查 | `check-size.mjs` | 文件 ≤ 600 行，函数 ≤ 120 行 |
+| 层级       | 工具             | 范围                         |
+| ---------- | ---------------- | ---------------------------- |
+| 类型检查   | `tsc --noEmit`   | 所有 workspace 项目          |
+| 单元测试   | Vitest           | 每个包的 `src/**/*.test.ts`  |
+| 工作区测试 | Vitest Workspace | 跨 packages + apps           |
+| 行数检查   | `check-size.mjs` | 文件 ≤ 600 行，函数 ≤ 120 行 |
 
 ### 9.2 手工验证
 
 `apps/playground` 提供 15 种触发动作的浏览器调试面板：
+
 - JS Error / unhandledrejection / console.error
 - XHR 成功/失败 / fetch 成功/失败
 - 资源加载失败 / 手动 API / 手动 error
@@ -577,11 +617,11 @@ const doubleWrapped = client.wrap(wrapped); // → 返回 wrapped（不重复包
 
 ### 9.3 已知验证边界
 
-| 可本地验证 | 需真实环境 |
-|-----------|-----------|
+| 可本地验证                               | 需真实环境       |
+| ---------------------------------------- | ---------------- |
 | 浏览器 Web 指标、XHR/Fetch、资源错误、PV | 容器 Bridge 模式 |
-| Metric、Perf (FSP/IRD/SHR) | 远程配置下发 |
-| 事件捕获、采样逻辑 | — |
+| Metric、Perf (FSP/IRD/SHR)               | 远程配置下发     |
+| 事件捕获、采样逻辑                       | —                |
 
 ---
 
@@ -598,22 +638,22 @@ const doubleWrapped = client.wrap(wrapped); // → 返回 wrapped（不重复包
 
 ## 十一、关键模式总结
 
-| 模式 | 应用场景 |
-|------|---------|
-| **插件生命周期** | 核心架构，所有功能模块都实现 Plugin 接口 |
-| **依赖注入** | MonitorContext 统一提供 cfgManager/eventBus/transport/logger |
-| **工厂函数** | 所有插件通过 `createXxxPlugin()` 创建，支持选项注入 |
-| **WeakMap 共享状态** | ErrorCapture 和 HistoryWatcher 的多订阅者共享 |
-| **构造函数替换** | XHR 拦截（高风险，高覆盖） |
-| **全局函数替换** | Fetch 拦截（非侵入式，重新抛错） |
-| **Fire-and-forget** | Beacon 传输，页面卸载场景 |
-| **批量 + 防抖** | ReportQueue 和 MetricManager |
-| **离线缓存 + 重试** | PerfCache 和 ContainerBridgeReporter |
-| **多层采样** | Static → Remote Override → Custom Bucket |
-| **防御性克隆** | CfgManager.getConfig() 返回深拷贝 |
-| **故障隔离** | EventBus.emit 捕获单个监听器异常 |
-| **优雅降级** | Protobuf 失败回退 JSON、Beacon 失败回退 localStorage |
-| **循环引用安全** | safeJsonStringify 使用 WeakSet 追踪 |
+| 模式                 | 应用场景                                                     |
+| -------------------- | ------------------------------------------------------------ |
+| **插件生命周期**     | 核心架构，所有功能模块都实现 Plugin 接口                     |
+| **依赖注入**         | MonitorContext 统一提供 cfgManager/eventBus/transport/logger |
+| **工厂函数**         | 所有插件通过 `createXxxPlugin()` 创建，支持选项注入          |
+| **WeakMap 共享状态** | ErrorCapture 和 HistoryWatcher 的多订阅者共享                |
+| **构造函数替换**     | XHR 拦截（高风险，高覆盖）                                   |
+| **全局函数替换**     | Fetch 拦截（非侵入式，重新抛错）                             |
+| **Fire-and-forget**  | Beacon 传输，页面卸载场景                                    |
+| **批量 + 防抖**      | ReportQueue 和 MetricManager                                 |
+| **离线缓存 + 重试**  | PerfCache 和 ContainerBridgeReporter                         |
+| **多层采样**         | Static → Remote Override → Custom Bucket                     |
+| **防御性克隆**       | CfgManager.getConfig() 返回深拷贝                            |
+| **故障隔离**         | EventBus.emit 捕获单个监听器异常                             |
+| **优雅降级**         | Protobuf 失败回退 JSON、Beacon 失败回退 localStorage         |
+| **循环引用安全**     | safeJsonStringify 使用 WeakSet 追踪                          |
 
 ---
 

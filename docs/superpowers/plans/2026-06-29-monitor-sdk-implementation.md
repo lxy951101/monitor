@@ -47,8 +47,8 @@ packages/
   plugin-page/
   plugin-pv/
   plugin-metric/
-  
-  
+
+
   plugin-perf-fsp/
   plugin-perf-ird/
   plugin-perf-shr/
@@ -70,6 +70,7 @@ vitest.config.ts
 ## 任务 1：初始化工作区与公共构建配置
 
 **文件：**
+
 - 创建：`package.json`
 - 创建：`pnpm-workspace.yaml`
 - 创建：`tsconfig.base.json`
@@ -151,6 +152,7 @@ git commit -m "chore: 初始化监控 SDK 工作区"
 ## 任务 2：创建所有子项目壳与包依赖关系
 
 **文件：**
+
 - 创建：`packages/*/package.json`
 - 创建：`packages/*/tsconfig.json`
 - 创建：`packages/*/vite.config.ts`
@@ -228,6 +230,7 @@ git commit -m "chore: 创建监控 SDK 多包结构"
 ## 任务 3：实现配置包
 
 **文件：**
+
 - 创建：`packages/config/src/defaults.ts`
 - 创建：`packages/config/src/endpoints.ts`
 - 创建：`packages/config/src/types.ts`
@@ -307,6 +310,7 @@ git commit -m "feat: 实现监控默认配置包"
 ## 任务 4：实现协议模型与序列化
 
 **文件：**
+
 - 创建：`packages/protocol/src/error.ts`
 - 创建：`packages/protocol/src/page.ts`
 - 创建：`packages/protocol/src/resource.ts`
@@ -334,11 +338,11 @@ describe("错误协议", () => {
       category: "jsError",
       sec_category: "boom",
       level: "error",
-      content: "stack"
+      content: "stack",
     });
     const body = encodeErrorBody([model]);
     expect(body.startsWith("c=")).toBe(true);
-    expect(decodeURIComponent(body.slice(2))).toContain("\"sec_category\":\"boom\"");
+    expect(decodeURIComponent(body.slice(2))).toContain('"sec_category":"boom"');
   });
 });
 ```
@@ -361,7 +365,12 @@ import { RESOURCE_FIELD_ORDER, createResourceModel, encodeResourceTextBatch } fr
 
 describe("资源协议", () => {
   it("按固定字段顺序编码资源", () => {
-    expect(RESOURCE_FIELD_ORDER.slice(0, 4)).toEqual(["resourceUrl", "connectType", "type", "timestamp"]);
+    expect(RESOURCE_FIELD_ORDER.slice(0, 4)).toEqual([
+      "resourceUrl",
+      "connectType",
+      "type",
+      "timestamp",
+    ]);
     const item = createResourceModel({
       resourceUrl: "https://example.com/a.js",
       connectType: "https",
@@ -370,11 +379,11 @@ describe("资源协议", () => {
       pageUrl: "/home",
       realUrl: "https://example.com/home",
       responsetime: "12",
-      statusCode: "200|"
+      statusCode: "200|",
     });
     const text = encodeResourceTextBatch({ infos: [item] });
     expect(text).toContain("https://example.com/a.js");
-    expect(text).toContain("\"infos\"");
+    expect(text).toContain('"infos"');
   });
 });
 ```
@@ -408,6 +417,7 @@ git commit -m "feat: 实现监控上报协议模型"
 ## 任务 5：实现传输层
 
 **文件：**
+
 - 创建：`packages/transport/src/http.ts`
 - 创建：`packages/transport/src/beacon.ts`
 - 创建：`packages/transport/src/cache.ts`
@@ -478,6 +488,7 @@ git commit -m "feat: 实现监控传输层"
 ## 任务 6：实现核心包
 
 **文件：**
+
 - 创建：`packages/core/src/config-manager.ts`
 - 创建：`packages/core/src/event-bus.ts`
 - 创建：`packages/core/src/logger.ts`
@@ -548,6 +559,7 @@ git commit -m "feat: 实现监控核心运行时"
 ## 任务 7：实现错误插件
 
 **文件：**
+
 - 创建：`packages/plugin-error/src/error-manager.ts`
 - 创建：`packages/plugin-error/src/capture.ts`
 - 创建：`packages/plugin-error/src/cache.ts`
@@ -568,7 +580,7 @@ describe("ErrorManager", () => {
     const manager = new ErrorManager({
       project: "demo",
       pageUrl: "/home",
-      send
+      send,
     });
     manager.addError(new Error("boom"));
     await manager.flush();
@@ -619,6 +631,7 @@ git commit -m "feat: 实现错误采集插件"
 ## 任务 8：实现 PV 与自定义指标插件
 
 **文件：**
+
 - 创建：`packages/plugin-pv/src/pv-manager.ts`
 - 创建：`packages/plugin-pv/src/spa.ts`
 - 创建：`packages/plugin-pv/src/index.ts`
@@ -683,6 +696,7 @@ git commit -m "feat: 实现 PV 和自定义指标插件"
 ## 任务 9：实现资源与 API 插件
 
 **文件：**
+
 - 创建：`packages/plugin-resource/src/ajax.ts`
 - 创建：`packages/plugin-resource/src/fetch.ts`
 - 创建：`packages/plugin-resource/src/resource-manager.ts`
@@ -743,6 +757,7 @@ git commit -m "feat: 实现资源和 API 采集插件"
 ## 任务 10：实现页面性能与老首屏插件
 
 **文件：**
+
 - 创建：`packages/plugin-page/src/page-manager.ts`
 - 创建：`packages/plugin-page/src/navigation-timing.ts`
 - 创建：`packages/plugin-page/src/first-screen.ts`
@@ -767,7 +782,7 @@ describe("页面测速", () => {
       responseEnd: 180,
       domInteractive: 220,
       loadEventStart: 300,
-      loadEventEnd: 320
+      loadEventEnd: 320,
     });
     expect(speed.split("|")[5]).toBe("10");
     expect(speed.split("|")[12]).toBe("80");
@@ -805,10 +820,10 @@ git add packages/plugin-page
 git commit -m "feat: 实现页面性能和首屏插件"
 ```
 
-
 ## 任务 12：实现 Perf 插件组
 
 **文件：**
+
 - 创建：`packages/plugin-perf-fsp/src/*.ts`
 - 创建：`packages/plugin-perf-ird/src/*.ts`
 - 创建：`packages/plugin-perf-shr/src/*.ts`
@@ -870,6 +885,7 @@ git commit -m "feat: 实现 Perf 指标插件组"
 ## 任务 13：实现聚合 SDK 和全局入口
 
 **文件：**
+
 - 创建：`packages/sdk/src/monitor-client.ts`
 - 创建：`packages/sdk/src/global.ts`
 - 创建：`packages/sdk/src/register-defaults.ts`
@@ -928,6 +944,7 @@ git commit -m "feat: 实现 Monitor 聚合 SDK"
 ## 任务 14：实现 mock-server
 
 **文件：**
+
 - 创建：`apps/mock-server/src/index.ts`
 - 创建：`apps/mock-server/src/parser.ts`
 - 创建：`apps/mock-server/src/store.ts`
@@ -980,6 +997,7 @@ git commit -m "feat: 实现监控 mock 上报服务"
 ## 任务 15：实现演示验证应用
 
 **文件：**
+
 - 创建：`apps/playground/index.html`
 - 创建：`apps/playground/src/main.ts`
 - 创建：`apps/playground/src/style.css`
@@ -1011,8 +1029,8 @@ Monitor.start({
   perf: {
     project: "monitor-playground",
     version: "0.0.0",
-    common: { dev: true, delay: 1000 }
-  }
+    common: { dev: true, delay: 1000 },
+  },
 });
 ```
 
@@ -1037,6 +1055,7 @@ git commit -m "feat: 实现监控演示验证应用"
 ## 任务 16：端到端验证与文档收口
 
 **文件：**
+
 - 修改：`README.md`
 - 创建：`docs/verification.md`
 
