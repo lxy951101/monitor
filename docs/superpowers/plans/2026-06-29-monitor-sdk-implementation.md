@@ -2,11 +2,11 @@
 
 > **面向代理执行者：** 必需子技能：实现本计划时使用 `superpowers:subagent-driven-development`（推荐）或 `superpowers:executing-plans`。每个任务按复选框逐步推进；每个行为变更必须先写失败测试，再写实现。
 
-**目标：** 按已确认设计实现一个以 `Monitor` 命名、协议和行为尽量兼容 OWL 1.13.5 的 TypeScript 多包监控 SDK。
+**目标：** 按已确认设计实现一个以 `Monitor` 命名协议和行为尽量兼容 参考实现 的 TypeScript 多包监控 SDK。
 
-**架构：** 使用 PNPM workspace 拆分配置、协议、传输、核心、插件、聚合 SDK、mock-server 和演示验证应用。`packages/sdk` 只做默认组装和全局入口，采集能力全部在独立插件包中实现；默认暴露 `window.Monitor`、`window.monitor`、`window._Monitor_`，旧 `Owl` 命名只作为显式兼容别名。
+**架构：** 使用 PNPM workspace 拆分配置协议传输核心插件聚合 SDKmock-server 和演示验证应用。`packages/sdk` 只做默认组装和全局入口，采集能力全部在独立插件包中实现；默认暴露 `window.Monitor``window.monitor``window._Monitor_`，。
 
-**技术栈：** TypeScript、PNPM、Vite、Vitest、Node HTTP 服务、浏览器原生 Performance API、MutationObserver、XMLHttpRequest、fetch、sendBeacon。
+**技术栈：** TypeScriptPNPMViteVitestNode HTTP 服务浏览器原生 Performance APIMutationObserverXMLHttpRequestfetchsendBeacon。
 
 ---
 
@@ -15,7 +15,7 @@
 - 所有新增源码文件保持 600 行以内，函数保持 120 行以内。
 - 每个任务先写测试，运行并确认失败，再写最小实现，最后运行相关测试。
 - 每个任务独立提交，提交信息使用中文或规范英文均可，但要能说明变更范围。
-- 不修改 `refer/owl_1.13.5.js`。
+- 不修改 参考实现。
 - 不覆盖用户已有改动；当前已知 `AGENTS.MD` 有未提交改动，执行计划时继续避开它。
 - 技术名词和包名可保留英文，说明文字使用中文。
 
@@ -47,8 +47,8 @@ packages/
   plugin-page/
   plugin-pv/
   plugin-metric/
-  plugin-logan/
-  plugin-horn/
+  
+  
   plugin-perf-fsp/
   plugin-perf-ird/
   plugin-perf-shr/
@@ -123,11 +123,11 @@ packages:
 
 - [ ] **步骤 3：创建 TypeScript 与 Vitest 基线**
 
-`tsconfig.base.json` 要启用严格模式、DOM 类型和 ES2022 输出；`vitest.workspace.ts` 要扫描 `packages/*` 与 `apps/*`。
+`tsconfig.base.json` 要启用严格模式DOM 类型和 ES2022 输出；`vitest.workspace.ts` 要扫描 `packages/*` 与 `apps/*`。
 
 - [ ] **步骤 4：创建尺寸检查脚本**
 
-`scripts/check-size.mjs` 检查 `packages/**/src/**/*.ts` 与 `apps/**/src/**/*.ts` 文件行数不超过 600，并用简单语法扫描约束普通函数、类方法和箭头函数主体不超过 120 行。脚本发现超限时输出文件路径、函数名和行号。
+`scripts/check-size.mjs` 检查 `packages/**/src/**/*.ts` 与 `apps/**/src/**/*.ts` 文件行数不超过 600，并用简单语法扫描约束普通函数类方法和箭头函数主体不超过 120 行。脚本发现超限时输出文件路径函数名和行号。
 
 - [ ] **步骤 5：验证**
 
@@ -197,7 +197,7 @@ pnpm -r typecheck
 config <- protocol <- transport <- core <- plugins <- sdk
 ```
 
-`protocol` 可以依赖 `config`；`transport` 可以依赖 `config` 和 `protocol`；插件可以依赖 `core`、`protocol`、`transport`；`sdk` 依赖所有插件。
+`protocol` 可以依赖 `config`；`transport` 可以依赖 `config` 和 `protocol`；插件可以依赖 `core``protocol``transport`；`sdk` 依赖所有插件。
 
 - [ ] **步骤 4：创建最小导出**
 
@@ -255,11 +255,11 @@ describe("配置包", () => {
   it("深合并用户配置且保留 compat 默认值", () => {
     const config = mergeMonitorConfig(createDefaultConfig(), {
       project: "demo",
-      compat: { legacyOwlAlias: true },
+      compat: { （已移除）: true },
       page: { delay: 10 }
     });
     expect(config.project).toBe("demo");
-    expect(config.compat.legacyOwlAlias).toBe(true);
+    expect(config.compat.（已移除）).toBe(true);
     expect(config.page.delay).toBe(10);
     expect(config.autoCatch.js).toBe(true);
   });
@@ -276,15 +276,15 @@ pnpm --filter @monitor/config test
 
 - [ ] **步骤 2：实现默认配置**
 
-实现 `MonitorConfig`、`AutoCatchConfig`、`PerfConfig` 等类型；默认配置包含设计文档列出的 `autoCatch`、`page`、`SPA`、`resource`、`ajax`、`image`、`error`、`metric`、`logan`、`perf`、`bridge`、`compat`。
+实现 `MonitorConfig``AutoCatchConfig``PerfConfig` 等类型；默认配置包含设计文档列出的 `autoCatch``page``SPA``resource``ajax``image``error``metric``perf``bridge``compat`。
 
 - [ ] **步骤 3：实现地址配置**
 
-`endpoints.ts` 导出生产/测试域名、api path、Horn 地址、Logan CDN 前缀、Perf 默认端点。
+`endpoints.ts` 导出生产/测试域名api pathPerf 默认端点。
 
 - [ ] **步骤 4：实现配置合并**
 
-`mergeMonitorConfig` 对普通对象做浅层递归合并；数组、正则、函数直接覆盖；`resourceReg` 支持字符串转 `RegExp`。
+`mergeMonitorConfig` 对普通对象做浅层递归合并；数组正则函数直接覆盖；`resourceReg` 支持字符串转 `RegExp`。
 
 - [ ] **步骤 5：验证**
 
@@ -379,9 +379,9 @@ describe("资源协议", () => {
 });
 ```
 
-- [ ] **步骤 3：实现错误、页面、PV、metric、resource、perf 模型**
+- [ ] **步骤 3：实现错误页面PVmetricresourceperf 模型**
 
-每个模型只负责字段默认值、字段清洗和编码，不发请求，不读取浏览器全局状态。
+每个模型只负责字段默认值字段清洗和编码，不发请求，不读取浏览器全局状态。
 
 - [ ] **步骤 4：实现 protobuf batch 的接口壳**
 
@@ -447,11 +447,11 @@ pnpm --filter @monitor/transport test
 
 - [ ] **步骤 2：实现 XHR/fetch 无关的发送接口**
 
-定义 `TransportRequest`、`TransportResponse`、`Transport`。浏览器 XHR 发送、sendBeacon 发送和 bridge 发送都实现同一接口。
+定义 `TransportRequest``TransportResponse``Transport`。浏览器 XHR 发送sendBeacon 发送和 bridge 发送都实现同一接口。
 
 - [ ] **步骤 3：实现 localStorage 缓存管理**
 
-缓存管理支持 `get`、`save`、`clear`，并捕获 storage 异常；测试用内存 storage mock。
+缓存管理支持 `get``save``clear`，并捕获 storage 异常；测试用内存 storage mock。
 
 - [ ] **步骤 4：实现通用容器 bridge 包装**
 
@@ -517,15 +517,15 @@ pnpm --filter @monitor/core test
 
 - [ ] **步骤 2：实现 `CfgManager`**
 
-包含配置读取、配置更新、API URL 生成、采样判断、扩展维度、过滤器管理、远端 sampling 回写。
+包含配置读取配置更新API URL 生成采样判断扩展维度过滤器管理远端 sampling 回写。
 
 - [ ] **步骤 3：实现 `EventBus` 和插件接口**
 
-插件接口包含 `name`、`start(context)`、可选 `stop()`；context 提供 cfgManager、eventBus、transport、logger。
+插件接口包含 `name``start(context)`可选 `stop()`；context 提供 cfgManagereventBustransportlogger。
 
 - [ ] **步骤 4：实现工具函数**
 
-拆分为 URL、cookie、UA、traceid、XPath、路由监听、JSON 安全 stringify。每个工具文件单一职责。
+拆分为 URLcookieUAtraceidXPath路由监听JSON 安全 stringify。每个工具文件单一职责。
 
 - [ ] **步骤 5：验证**
 
@@ -588,11 +588,11 @@ pnpm --filter @monitor/plugin-error test
 
 - [ ] **步骤 2：实现手动错误上报**
 
-支持 `addError`、`sendErrors`、错误去重、maxSize、maxNum、maxTime、ignoreList、过滤器。
+支持 `addError``sendErrors`错误去重maxSizemaxNummaxTimeignoreList过滤器。
 
 - [ ] **步骤 3：实现自动采集**
 
-接管 `window.onerror`、`unhandledrejection`、可选 `console.error`；patch 要幂等并保留原始处理函数。
+接管 `window.onerror``unhandledrejection`可选 `console.error`；patch 要幂等并保留原始处理函数。
 
 - [ ] **步骤 4：实现页面离开缓存**
 
@@ -650,15 +650,15 @@ describe("PvManager", () => {
 
 - [ ] **步骤 2：写 metric 失败测试**
 
-覆盖 `setMetric`、`setTags`、`report` 生成 `{ tvs, datas }`。
+覆盖 `setMetric``setTags``report` 生成 `{ tvs, datas }`。
 
 - [ ] **步骤 3：实现 PV**
 
-支持自动 PV、`reportPv`、`resetPv`、SPA 自动 PV、维度与 custom tags 编码。
+支持自动 PV`reportPv``resetPv`SPA 自动 PV维度与 custom tags 编码。
 
 - [ ] **步骤 4：实现 metric**
 
-支持采样、combo 延迟、失败时通过错误插件上报 SDK 告警。
+支持采样combo 延迟失败时通过错误插件上报 SDK 告警。
 
 - [ ] **步骤 5：验证**
 
@@ -712,11 +712,11 @@ describe("ajax 拦截", () => {
 
 - [ ] **步骤 2：实现 XHR/fetch 拦截**
 
-保留原始方法，记录耗时、状态码、traceid，过滤自身上报请求。
+保留原始方法，记录耗时状态码traceid，过滤自身上报请求。
 
 - [ ] **步骤 3：实现资源 PerformanceEntry 采集**
 
-解析 script、link、img、css；支持图片大小和耗时异常；支持 PerformanceObserver 与回退轮询。
+解析 scriptlinkimgcss；支持图片大小和耗时异常；支持 PerformanceObserver 与回退轮询。
 
 - [ ] **步骤 4：实现资源加载错误**
 
@@ -805,52 +805,6 @@ git add packages/plugin-page
 git commit -m "feat: 实现页面性能和首屏插件"
 ```
 
-## 任务 11：实现 Horn 与 Logan 插件
-
-**文件：**
-- 创建：`packages/plugin-horn/src/horn-manager.ts`
-- 创建：`packages/plugin-horn/src/index.ts`
-- 创建：`packages/plugin-logan/src/logan-manager.ts`
-- 创建：`packages/plugin-logan/src/load-script.ts`
-- 创建：`packages/plugin-logan/src/index.ts`
-- 创建：`packages/plugin-horn/src/*.test.ts`
-- 创建：`packages/plugin-logan/src/*.test.ts`
-
-- [ ] **步骤 1：写 Horn 失败测试**
-
-覆盖缓存读取、过期刷新和远端配置解析。
-
-- [ ] **步骤 2：写 Logan 失败测试**
-
-覆盖未 ready 前排队、ready 后 flush、外部 Logan API 注入。
-
-- [ ] **步骤 3：实现 Horn**
-
-实现 `_sdkHorn_<key>` storage 格式、URL 构建、缓存过期、远端配置读取。
-
-- [ ] **步骤 4：实现 Logan**
-
-实现 CDN 地址配置化、动态加载、Session/Navigation/Performance/Ajax/Error/Resource 日志方法。
-
-- [ ] **步骤 5：验证**
-
-运行：
-
-```bash
-pnpm --filter @monitor/plugin-horn test
-pnpm --filter @monitor/plugin-logan test
-pnpm --filter @monitor/plugin-horn typecheck
-pnpm --filter @monitor/plugin-logan typecheck
-```
-
-预期：全部通过。
-
-- [ ] **步骤 6：提交**
-
-```bash
-git add packages/plugin-horn packages/plugin-logan
-git commit -m "feat: 实现 Horn 和 Logan 插件"
-```
 
 ## 任务 12：实现 Perf 插件组
 
@@ -878,17 +832,17 @@ describe("交互响应耗时", () => {
 
 - [ ] **步骤 2：写 shr 失败测试**
 
-覆盖滚动时长、帧数、掉帧率计算。
+覆盖滚动时长帧数掉帧率计算。
 
-- [ ] **步骤 3：写 fsp2 失败测试**
+- [ ] **步骤 3：写 fsp 失败测试**
 
-覆盖秒开状态、采样、beforeSend、页面隐藏停止。
+覆盖秒开状态采样beforeSend页面隐藏停止。
 
 - [ ] **步骤 4：实现 perf 基础队列与缓存**
 
 浏览器环境走 web endpoint；容器环境走 bridge；失败缓存写入 `__perf_cache`。
 
-- [ ] **步骤 5：实现 fsp2、ird、shr**
+- [ ] **步骤 5：实现 fspirdshr**
 
 各插件只依赖 core context 和 transport，不互相依赖。浏览器 API 监听逻辑与计算函数分离。
 
@@ -946,11 +900,11 @@ describe("聚合 SDK", () => {
 
 - [ ] **步骤 3：实现默认插件注册**
 
-`register-defaults.ts` 按顺序注册 Horn、Logan、Error、Page、Resource、PV、Metric、Perf 插件。
+`register-defaults.ts` 按顺序注册 Error、Page、Resource、PV、Metric、Perf 插件。
 
 - [ ] **步骤 4：实现全局入口**
 
-默认挂载 `window.Monitor`、接管 `window.monitor` 队列、回放 `window._Monitor_`；仅 `compat.legacyOwlAlias` 为 true 时挂载旧别名。
+默认挂载 `window.Monitor`接管 `window.monitor` 队列回放 `window._Monitor_`；仅 `compat.（已移除）` 为 true 时挂载旧别名。
 
 - [ ] **步骤 5：验证**
 
@@ -962,7 +916,7 @@ pnpm --filter @monitor/sdk typecheck
 pnpm --filter @monitor/sdk build
 ```
 
-预期：全部通过并生成 ESM、CJS、IIFE。
+预期：全部通过并生成 ESMCJSIIFE。
 
 - [ ] **步骤 6：提交**
 
@@ -1043,7 +997,7 @@ pnpm --filter playground build
 
 - [ ] **步骤 2：实现测试按钮**
 
-页面提供按钮触发：JS Error、unhandledrejection、console.error、XHR 成功/失败、fetch 成功/失败、资源加载失败、手动 API、手动 error、metric、resetPv、SPA 路由、touchend、滚动。
+页面提供按钮触发：JS Errorunhandledrejectionconsole.errorXHR 成功/失败fetch 成功/失败资源加载失败手动 API手动 errormetricresetPvSPA 路由touchend滚动。
 
 - [ ] **步骤 3：接入 Monitor**
 
@@ -1112,11 +1066,11 @@ pnpm --filter playground dev
 
 - [ ] **步骤 3：记录验证结果**
 
-`docs/verification.md` 记录命令输出摘要、浏览器验证项目、尚未真实验证的容器 bridge 限制。
+`docs/verification.md` 记录命令输出摘要浏览器验证项目尚未真实验证的容器 bridge 限制。
 
 - [ ] **步骤 4：更新 README**
 
-README 增加安装、开发、构建、测试、mock-server、playground、全局命名说明。
+README 增加安装开发构建测试mock-serverplayground全局命名说明。
 
 - [ ] **步骤 5：提交**
 
@@ -1127,8 +1081,8 @@ git commit -m "docs: 补充监控 SDK 验证说明"
 
 ## 自查结果
 
-- 设计文档中的工作区结构、配置包、协议包、传输层、核心包、全部插件、聚合 SDK、mock-server、演示验证应用都已有对应任务。
-- 秒开 2.0、交互响应耗时、滚动帧率和掉帧位于任务 12。
+- 设计文档中的工作区结构配置包协议包传输层核心包全部插件聚合 SDKmock-server演示验证应用都已有对应任务。
+- 秒开交互响应耗时滚动帧率和掉帧位于任务 12。
 - `Monitor` 命名要求位于任务 6 和任务 13，并在全局入口验证。
-- 每个实现任务都有先失败测试、再实现、再验证、再提交的步骤。
+- 每个实现任务都有先失败测试再实现再验证再提交的步骤。
 - 本计划没有要求修改 `AGENTS.MD`。
