@@ -6,7 +6,7 @@ import { createIrdPlugin } from "@monitor/plugin-perf-ird";
 import { createShrPlugin } from "@monitor/plugin-perf-shr";
 import { createPvPlugin, type PvManager } from "@monitor/plugin-pv";
 import { createResourcePlugin } from "@monitor/plugin-resource";
-import { createErrorPlugin } from "./error-plugin";
+import { createErrorPlugin } from "@monitor/plugin-error";
 import type { MonitorClient } from "./monitor-client";
 
 export interface DefaultPluginRefs {
