@@ -1,118 +1,118 @@
 export interface ReportQueueOptions<T> {
-  maxLength: number;
-  /** 延迟发送的毫秒数。0 表示立即发送。若 > 0，实际值不低于 minDelay（默认 1000ms）。 */
-  delay: number;
-  send: (reports: T[]) => Promise<void>;
-  onFail?: (error: unknown, reports: T[]) => void;
-  /** 队列延迟下限（毫秒），默认 1000。设为 0 可关闭下限。 */
-  minDelay?: number;
+ maxLength: number;
+ /** 延迟发送的毫秒数。0 表示立即发送。若 > 0，实际值不低于 minDelay（默认 1000ms）。 */
+ delay: number;
+ send: (reports: T[]) => Promise<void>;
+ onFail?: (error: unknown, reports: T[]) => void;
+ /** 队列延迟下限（毫秒），默认 1000。设为 0 可关闭下限。 */
+ minDelay?: number;
 }
 
 const DEFAULT_MIN_DELAY = 1000;
 
 export class ReportQueue<T = unknown> {
-  private readonly reports: T[] = [];
-  private readonly maxLength: number;
-  private readonly delay: number;
-  private readonly send: (reports: T[]) => Promise<void>;
-  private readonly onFail?: (error: unknown, reports: T[]) => void;
-  private timer: ReturnType<typeof setTimeout> | undefined;
-  private pendingFlush: Promise<void> | undefined;
-  private needsFlush = false;
+ private readonly reports: T[] = [];
+ private readonly maxLength: number;
+ private readonly delay: number;
+ private readonly send: (reports: T[]) => Promise<void>;
+ private readonly onFail?: (error: unknown, reports: T[]) => void;
+ private timer: ReturnType<typeof setTimeout> | undefined;
+ private pendingFlush: Promise<void> | undefined;
+ private needsFlush = false;
 
-  constructor(options: ReportQueueOptions<T>) {
-    const minDelay = options.minDelay ?? DEFAULT_MIN_DELAY;
+ constructor(options: ReportQueueOptions<T>) {
+  const minDelay = options.minDelay ?? DEFAULT_MIN_DELAY;
 
-    this.maxLength = Math.max(1, options.maxLength);
-    this.delay = options.delay > 0 ? Math.max(minDelay, options.delay) : 0;
-    this.send = options.send;
-    this.onFail = options.onFail;
+  this.maxLength = Math.max(1, options.maxLength);
+  this.delay = options.delay > 0 ? Math.max(minDelay, options.delay) : 0;
+  this.send = options.send;
+  this.onFail = options.onFail;
+ }
+
+ add(report: T): void {
+  this.reports.push(report);
+
+  if (this.reports.length >= this.maxLength) {
+   this.triggerFlush();
+   return;
   }
 
-  add(report: T): void {
-    this.reports.push(report);
+  this.scheduleFlush();
+ }
 
-    if (this.reports.length >= this.maxLength) {
-      this.triggerFlush();
-      return;
-    }
+ size(): number {
+  return this.reports.length;
+ }
 
-    this.scheduleFlush();
+ async flush(): Promise<void> {
+  if (this.pendingFlush) {
+   this.needsFlush = true;
+   return this.pendingFlush;
   }
 
-  size(): number {
-    return this.reports.length;
+  this.clearTimer();
+  if (this.reports.length === 0) {
+   return undefined;
   }
 
-  async flush(): Promise<void> {
-    if (this.pendingFlush) {
-      this.needsFlush = true;
-      return this.pendingFlush;
-    }
+  const batch = this.reports.splice(0, this.reports.length);
+  this.pendingFlush = this.sendBatch(batch);
 
-    this.clearTimer();
-    if (this.reports.length === 0) {
-      return undefined;
-    }
+  try {
+   await this.pendingFlush;
+   this.pendingFlush = undefined;
+   if (this.reports.length > 0) {
+    await this.flushPendingReports();
+   }
+  } catch (error) {
+   this.pendingFlush = undefined;
+   throw error;
+  }
+ }
 
-    const batch = this.reports.splice(0, this.reports.length);
-    this.pendingFlush = this.sendBatch(batch);
+ private async sendBatch(batch: T[]): Promise<void> {
+  try {
+   await this.send(batch);
+  } catch (error) {
+   this.reports.unshift(...batch);
+   this.onFail?.(error, batch);
+   throw error;
+  }
+ }
 
-    try {
-      await this.pendingFlush;
-      this.pendingFlush = undefined;
-      if (this.reports.length > 0) {
-        await this.flushPendingReports();
-      }
-    } catch (error) {
-      this.pendingFlush = undefined;
-      throw error;
-    }
+ private scheduleFlush(): void {
+  if (this.delay === 0 || this.timer) {
+   return;
   }
 
-  private async sendBatch(batch: T[]): Promise<void> {
-    try {
-      await this.send(batch);
-    } catch (error) {
-      this.reports.unshift(...batch);
-      this.onFail?.(error, batch);
-      throw error;
-    }
+  this.timer = setTimeout(() => {
+   this.timer = undefined;
+   this.triggerFlush();
+  }, this.delay);
+ }
+
+ private triggerFlush(): void {
+  void this.flush().catch(() => {
+   // sendBatch 已回滚数据并触发 onFail；自动触发路径只负责避免悬空 rejection。
+  });
+ }
+
+ private async flushPendingReports(): Promise<void> {
+  if (this.needsFlush || this.reports.length >= this.maxLength) {
+   this.needsFlush = false;
+   await this.flush();
+   return;
   }
 
-  private scheduleFlush(): void {
-    if (this.delay === 0 || this.timer) {
-      return;
-    }
+  this.scheduleFlush();
+ }
 
-    this.timer = setTimeout(() => {
-      this.timer = undefined;
-      this.triggerFlush();
-    }, this.delay);
+ private clearTimer(): void {
+  if (!this.timer) {
+   return;
   }
 
-  private triggerFlush(): void {
-    void this.flush().catch(() => {
-      // sendBatch 已回滚数据并触发 onFail；自动触发路径只负责避免悬空 rejection。
-    });
-  }
-
-  private async flushPendingReports(): Promise<void> {
-    if (this.needsFlush || this.reports.length >= this.maxLength) {
-      this.needsFlush = false;
-      await this.flush();
-      return;
-    }
-
-    this.scheduleFlush();
-  }
-
-  private clearTimer(): void {
-    if (!this.timer) {
-      return;
-    }
-
-    clearTimeout(this.timer);
-    this.timer = undefined;
-  }
+  clearTimeout(this.timer);
+  this.timer = undefined;
+ }
 }

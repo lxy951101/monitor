@@ -6,8 +6,6 @@ IRD（Interaction Response Delay，交互响应耗时）是一种衡量用户交
 
 与 INP（Interaction to Next Paint）等标准指标不同，IRD 专注于**移动端触摸交互的端到端响应时间**，适用于 H5 页面和容器（WebView）场景。
 
-该算法参考 `refer/owl_1.13.5.js` 实现，在核心思路上保持一致，同时在健壮性、可测试性和可配置性方面做了增强。
-
 ---
 
 ## 核心原理
@@ -320,9 +318,9 @@ export interface IrdRuntime {
 
 ---
 
-## 与 owl.js 的差异
+## 与 的差异
 
-| 维度 | owl.js (`PluginIrd`) | plugin-perf-ird | 说明 |
+| 维度 | (`PluginIrd`) | plugin-perf-ird | 说明 |
 |------|----------------------|-----------------|------|
 | 采样率语义 | 0-100 范围（5=5%） | 0-1 范围（1=100%） | 更直观的 0-1 小数 |
 | 事件捕获 | `capture: true` | `capture: true` | ✅ 已对齐，在捕获阶段监听 |

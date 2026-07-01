@@ -73,7 +73,7 @@ export class Fsp2ViewportDetector {
       }
     }
 
-    // 对齐 owl: 初始检测使用 > 17 (即要求 18/18 全满)，比动态检测更严格
+    // 初始检测使用 > 17 (即要求 18/18 全满)，比动态检测更严格
     // 因为 elementsFromPoint 点采样不如 getBoundingClientRect 相交检测精确
     if (filledCount > FILL_CUBE_NUM) {
       this.fillRateDone = true;
@@ -88,7 +88,7 @@ export class Fsp2ViewportDetector {
     return this.isReady();
   }
 
-  // 对齐 owl: 不覆盖 readyTime，保留 fillRate/reachBottom 首次达标时间 (fillRateOrReachChangeTime)
+  // 不覆盖 readyTime，保留 fillRate/reachBottom 首次达标时间 (fillRateOrReachChangeTime)
   checkTimeoutElements(elements: Element[], timestamp: number): boolean {
     return this.checkElements(elements, timestamp);
   }

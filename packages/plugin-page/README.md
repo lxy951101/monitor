@@ -1,6 +1,6 @@
 # plugin-page 实现原理
 
-> 对齐 `refer/owl_1.13.5.js` 中 `PageManager` + `FirstScreenManager` 的核心能力，
+> 对齐  中 `PageManager` + `FirstScreenManager` 的核心能力，
 > 按 monitor 项目架构模块化拆分为独立可测试的单元。
 
 ## 整体架构
@@ -36,7 +36,7 @@
 
 ### 点位映射
 
-与 owl.js 保持 27 点位数组一致：
+与 保持 27 点位数组一致：
 
 | 索引 | 含义 | 来源 |
 |------|------|------|
@@ -207,7 +207,7 @@ startRouteFst({
 
 ### analyzeFirstScreenResources
 
-对齐 owl.js `parseFirstScreenPerf`，提供资源维度的深度分析：
+`parseFirstScreenPerf`，提供资源维度的深度分析：
 
 ```
 输入: fst (首屏时间), resEntries (performance.getEntriesByType("resource"))
@@ -218,7 +218,7 @@ startRouteFst({
 }
 ```
 
-采样策略（对齐 owl.js）：
+采样策略（）：
 - **汇总数据**：按 `fstPerfSample` 采样率上报
 - **慢访问个案**：FST > 1s 时，按阶梯采样率（<2s: 5%, ≥2s: 10%）记录每个资源的详细耗时
 
@@ -239,9 +239,9 @@ createPagePlugin(options: PagePluginOptions): Plugin
 - `manager.reportRouteFst(fst, pageUrl)` — 路由 FST 上报
 - `manager.parsePageTime(senseTime)` — 手动触发完整测速解析
 
-## 七、与 owl.js 的差异总结
+## 七、与 的差异总结
 
-| 维度 | owl.js | plugin-page |
+| 维度 | | plugin-page |
 |------|--------|-------------|
 | 上报方式 | GET + QueryString | POST（兼容旧）+ GET（新增完整点位） |
 | 点位覆盖 | 27 + Titans | 27 完整覆盖 |
@@ -253,7 +253,7 @@ createPagePlugin(options: PagePluginOptions): Plugin
 | FST PerformanceObserver | ✅ | ✅ |
 | 首屏外停止 | ✅ | ✅ |
 | 用户交互停止 | ✅ | ✅ |
-| 元素 ignore 属性 | ✅ owl-ignore | ✅ 可配置 |
+| 元素 ignore 属性 | ✅ monitor-ignore | ✅ 可配置 |
 | SPA 路由 FST | ✅ | ✅ RouteFirstScreenManager |
 | 资源汇总分析 | ✅ | ✅ analyzeFirstScreenResources |
 | 慢访问个案 | ✅ | ✅ |

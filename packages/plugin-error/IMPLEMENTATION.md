@@ -4,8 +4,6 @@
 
 plugin-error 是 `@monitor/plugin-error` 的 JavaScript 错误监控插件。它负责全局捕获三类运行时错误——`window.onerror`（JS 执行错误）、`unhandledrejection`（未处理的 Promise 拒绝）和 `console.error`（控制台错误），经过过滤、去重、限流后批量上报至服务端。
 
-该插件严格对齐 `refer/owl_1.13.5.js` 的 ErrorManager 模块，在核心行为（栈解析、限流、combo 延迟、`owlErrDetected` 事件、页面离开检测等）上保持一致，同时在架构上做了模块化拆分和可测试性增强。
-
 ---
 
 ## 核心原理
@@ -79,7 +77,7 @@ sequenceDiagram
 
 捕获层支持三种粒度的回调：
 
-| 回调 | 对应 owl.js 方法 | 传递参数 |
+| 回调 | 对应 方法 | 传递参数 |
 |---|---|---|
 | `onWindowError` | `parseWindowError` | `(msg, source, lineno, colno, error)` |
 | `onUnhandledRejection` | `parsePromiseUnhandled` | `(event: PromiseRejectionEvent)` |
@@ -87,13 +85,13 @@ sequenceDiagram
 
 若未提供专用处理器，回退到通用 `addError` 回调。
 
-### 3. 错误解析（对齐 owl.js 三大入口）
+### 3. 错误解析（三大入口）
 
 #### 3.1 parseWindowError — JS 执行错误
 
 ```typescript
 // 从 Error.stack 中正则提取资源 URL 和行列号
-// owl.js: _processError + parseWindowError
+// : _processError + parseWindowError
 parseWindowError(msg, url, line, col, error) {
   if (error?.stack) {
     const parsed = _processError(error);
@@ -123,19 +121,19 @@ event.reason 非 Error → content = reason.toString()
 
 ### 4. 内部管线（pushModel）
 
-每条错误在入队前经过完整的过滤链，对齐 owl.js 的 `push()` 方法：
+每条错误在入队前经过完整的过滤链，的 `push()` 方法：
 
 ```
 pushModel(model)
-  ├── isSampled("error")         ← 采样检查 (owl: isSampleHit)
+  ├── isSampled("error")         ← 采样检查 (isSampleHit)
   ├── applyFilters               ← beforeSend / filter 钩子
-  ├── noScriptError              ← 过滤 "Script error" 前缀 (owl: noScriptError)
-  ├── cfgManager.filters         ← 全局过滤器 (owl: filters 数组)
-  ├── ignoreList (sec_category)  ← sec_category 前缀/正则匹配 (owl: ignoreList.js)
-  ├── maxSize 检查              ← content.length >= maxSize → 丢弃 (owl: maxSize)
-  ├── dispatchErrorEvent         ← owlErrDetected CustomEvent
+  ├── noScriptError              ← 过滤 "Script error" 前缀 (noScriptError)
+  ├── cfgManager.filters         ← 全局过滤器 (filters 数组)
+  ├── ignoreList (sec_category)  ← sec_category 前缀/正则匹配 (ignoreList.js)
+  ├── maxSize 检查              ← content.length >= maxSize → 丢弃 (maxSize)
+  ├── dispatchErrorEvent         ← monitorErrDetected CustomEvent
   ├── isExist (内容去重)        ← sec_category + resourceUrl + rowNum + colNum + content
-  ├── _handleError (onErrorPush) ← 可转换/丢弃 (owl: _handleError)
+  ├── _handleError (onErrorPush) ← 可转换/丢弃 (_handleError)
   └── enqueue                    ← 时间窗口去重 + 入队
 ```
 
@@ -143,12 +141,12 @@ pushModel(model)
 
 | 层级 | 方式 | 用于 |
 |---|---|---|
-| **isExist**（内容去重） | 对比 `sec_category + resourceUrl + rowNum + colNum + content` | 当前队列内的完全重复（对齐 owl.js） |
-| **isDuplicate**（时间窗口去重） | key=`category|sec_category|content`，`recent` Map 记录，`dedupeTime` 过期 | 短时间内相同错误的合并（对齐 owl.js 的 `isExist` + `recent` 组合） |
+| **isExist**（内容去重） | 对比 `sec_category + resourceUrl + rowNum + colNum + content` | 当前队列内的完全重复（） |
+| **isDuplicate**（时间窗口去重） | key=`category|sec_category|content`，`recent` Map 记录，`dedupeTime` 过期 | 短时间内相同错误的合并（的 `isExist` + `recent` 组合） |
 
 #### 4.2 onErrorPush Hook
 
-对齐 owl.js 的 `_handleError`：在入队前最后一步，允许外部函数转换或丢弃错误模型：
+的 `_handleError`：在入队前最后一步，允许外部函数转换或丢弃错误模型：
 
 ```typescript
 onErrorPush?: (model: ErrorModel) => ErrorModel | undefined;
@@ -160,7 +158,7 @@ onErrorPush?: (model: ErrorModel) => ErrorModel | undefined;
 
 #### 5.1 Combo 模式
 
-对齐 owl.js 的 `combo` 开关和 `delay` 延迟合并：
+的 `combo` 开关和 `delay` 延迟合并：
 
 ```mermaid
 flowchart TD
@@ -174,7 +172,7 @@ flowchart TD
 
 #### 5.2 限流（Time-Window Rate Limiting）
 
-严格对齐 owl.js 的窗口限流算法：
+严格的窗口限流算法：
 
 ```
 checkRateLimit():
@@ -191,7 +189,7 @@ checkRateLimit():
     this.errorCount = 0
 ```
 
-关键细节：`timeSinceStart` 在 `this.timeLimit` 重置**之前**计算，保证首次调用时读取到的是构造函数距今的时间差，从而触发窗口重置——与 owl.js 完全一致。
+关键细节：`timeSinceStart` 在 `this.timeLimit` 重置**之前**计算，保证首次调用时读取到的是构造函数距今的时间差，从而触发窗口重置——与 完全一致。
 
 #### 5.3 发送流程
 
@@ -218,7 +216,7 @@ sendErrors(isReportNow=true):
 
 ### 6. 页面离开检测（detectLeave）
 
-对齐 owl.js 的 `detectLeave`，自动 patch `window.onbeforeunload`：
+的 `detectLeave`，自动 patch `window.onbeforeunload`：
 
 ```
 detectLeave():
@@ -243,12 +241,12 @@ readErrorCache / writeErrorCache / appendErrorCache / clearErrorCache
 ```
 
 - `StorageLike` 为泛型接口，支持注入自定义存储（非浏览器环境）
-- 缓存 key 带 `webVersion` 后缀，不同版本互不干扰（对齐 owl.js 的版本化缓存）
+- 缓存 key 带 `webVersion` 后缀，不同版本互不干扰（的版本化缓存）
 - 所有读写操作 catch 异常，不向外抛
 
 #### 7.2 延迟读取
 
-对齐 owl.js 的 `checkCache`：插件启动后 **延迟 4000ms** 再读取并上报历史缓存，给页面足够的初始化时间。
+的 `checkCache`：插件启动后 **延迟 4000ms** 再读取并上报历史缓存，给页面足够的初始化时间。
 
 #### 7.3 部分发送失败
 
@@ -256,22 +254,22 @@ readErrorCache / writeErrorCache / appendErrorCache / clearErrorCache
 
 ### 8. SDK 自身错误上报（reportSystemError）
 
-对齐 owl.js 的 `reportSystemError` / `reportSystemWarn`：
+的 `reportSystemError` / `reportSystemWarn`：
 
 ```
 reportSystemError(err, opts):
-  构造 ErrorModel (project="owl", sec_category = err.message || "parseError")
+  构造 ErrorModel (project="monitor", sec_category = err.message || "parseError")
   → pushModel → sendErrors(true)
   // try/catch 静默处理，避免递归错误
 ```
 
-### 9. owlErrDetected 自定义事件
+### 9. monitorErrDetected 自定义事件
 
-对齐 owl.js：每条有效错误入队前，通过 `window.dispatchEvent` 广播 `owlErrDetected` CustomEvent，携带 `{ project, pageUrl, category, sec_category, level, unionId, pageId }`。支持 IE9 fallback（`document.createEvent`）。
+：每条有效错误入队前，通过 `window.dispatchEvent` 广播 `monitorErrDetected` CustomEvent，携带 `{ project, pageUrl, category, sec_category, level, unionId, pageId }`。支持 IE9 fallback（`document.createEvent`）。
 
 ### 10. 远程配置下发（handleRemoteConfig）
 
-发送成功后检查响应 `body.sampling`，调用 `cfgManager.applyRemoteSampling()` 更新采样率，对齐 owl.js 的 `handleRemoteConfig`。
+发送成功后检查响应 `body.sampling`，调用 `cfgManager.applyRemoteSampling()` 更新采样率，的 `handleRemoteConfig`。
 
 ---
 
@@ -295,7 +293,7 @@ type ErrorModel = Record<ErrorFieldName, string | number> & {
 - `category` — `"jsError"` | `"ajaxError"` | `"resourceError"`
 - `level` — `"error"` | `"warn"` | `"info"` | `"debug"`
 - 发送编码：`c=${encodeURIComponent(JSON.stringify(models))}`，`Content-Type: application/x-www-form-urlencoded;charset=UTF-8`
-- `rowNum` / `colNum` 仅在 SCRIPT 类型时写入 `dynamicMetric`（对齐 owl.js）
+- `rowNum` / `colNum` 仅在 SCRIPT 类型时写入 `dynamicMetric`（）
 
 ---
 
@@ -407,16 +405,16 @@ stateDiagram-v2
 | `delay` | `1000` | combo 延迟 (ms) |
 | `maxNum` | `100` | 时间窗口内最大错误数 |
 | `maxTime` | `60000` | 限流窗口时长 (ms) |
-| `maxSize` | `10240` | 单条 content 最大长度（>= 即丢弃，对齐 owl.js） |
+| `maxSize` | `10240` | 单条 content 最大长度（>= 即丢弃，） |
 | `disableCache` | `true` | 是否禁用 localStorage 缓存 |
 | `ignoreList` | `[]` | 忽略列表（string 前缀匹配 / RegExp） |
 | `maxRepeat` | `5` | 最大重复次数（预留） |
 
 ---
 
-## 与 owl.js 的差异
+## 与 的差异
 
-| 维度 | owl.js | plugin-error | 说明 |
+| 维度 | | plugin-error | 说明 |
 |---|---|---|---|
 | 架构 | 单体 `ErrorManager` 类，耦合全局变量 | 三模块拆分（capture / cache / error-manager），依赖注入 | 可独立启停、替换、测试 |
 | 事件捕获 | 直接覆写 `window.onerror`，不可逆 | `createErrorCapture` 基于 WeakMap 多订阅，stop 恢复 | 多实例安全 |
@@ -431,9 +429,9 @@ stateDiagram-v2
 | 缓存读取时机 | 延迟 4000ms | 延迟 4000ms（`checkCache()`） | 行为对齐 |
 | 页面离开 | 自动 patch `window.onbeforeunload` | `detectLeave()` + 显式 `handlePageLeave()` | 两种方式可选 |
 | 远程配置 | `success: cfgManager.handleRemoteConfig(res)` | `sendErrors` 成功后调用 `handleRemoteConfig(response)` | 行为对齐 |
-| 自定义事件 | `owlErrDetected` CustomEvent + IE9 polyfill | `dispatchErrorEvent()` + IE9 fallback | 行为对齐 |
+| 自定义事件 | `monitorErrDetected` CustomEvent + IE9 polyfill | `dispatchErrorEvent()` + IE9 fallback | 行为对齐 |
 | SDK 自身错误 | `reportSystemError` / `reportSystemWarn` → SysInstance | 同名方法 → 自身 `addError` 管线 | 行为对齐 |
-| 单条长度限制 | `content.length >= maxSize` → 丢弃 | 同 owl.js | 行为对齐 |
+| 单条长度限制 | `content.length >= maxSize` → 丢弃 | 同 | 行为对齐 |
 | `report()` 方法 | `push() + send(true)` | `addError() + sendErrors(true)` | 行为对齐 |
 | 类型安全 | JavaScript（无类型） | TypeScript（完整类型） | 编译时保证 |
 | 测试覆盖 | - | 23 个单元测试 | 覆盖所有核心流程 |
@@ -442,12 +440,12 @@ stateDiagram-v2
 
 | 差异 | 说明 |
 |---|---|
-| Logan 日志 | 明确排除，`toLoganJson` / `Logan._log` 不实现 |
+| 日志 | 明确排除，`toJson` / `._log` 不实现 |
 | 资源错误 | 由独立 `plugin-resource` 包负责，`_pushResource` 不在此插件 |
 | `SysInstance` | 新架构无全局单例概念，`reportSystemError` 通过自身管线自上报 |
 | `xhrRewritten` | 传输层抽象自动处理 XHR 重写，无需显式传参 |
-| `combo` 默认值 | owl 为概念上的隐式默认，新架构显式 `combo: false` |
-| `traceid` 字段 | 新增字段，owl.js 无 |
+| `combo` 默认值 | 新架构显式 `combo: false` |
+| `traceid` 字段 | 新增字段，无 |
 
 ---
 

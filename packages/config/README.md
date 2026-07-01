@@ -31,7 +31,7 @@ MonitorConfig
 ├── metric:   { enable, sample, tags }
 ├── perf:     { fsp2, ird, shr, cache }
 ├── bridge:   { enable, preferredMethod }
-└── compat:   { legacyOwlAlias, monitorQueue }
+└── compat:   { monitorQueue }
 ```
 
 ## 关键常量 `endpoints.ts`

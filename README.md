@@ -1,6 +1,6 @@
 # monitor
 
-`monitor` 是一个 TypeScript + PNPM + Vite 的前端监控 SDK 工作区。项目参考 `refer/owl_1.13.5.js` 的能力拆分实现，但默认命名统一为 `Monitor` / `monitor`，不会创建奇怪的 `Owl` 变量；只有显式开启 `compat.legacyOwlAlias` 时才会挂载旧别名。
+`monitor` 是一个 TypeScript + PNPM + Vite 的前端监控 SDK 工作区。
 
 ## 子项目
 
@@ -8,7 +8,7 @@
 - `packages/protocol`：PV、错误、资源/API、页面性能、Perf 指标协议模型。
 - `packages/transport`：XHR、Beacon、Bridge 传输和缓存队列。
 - `packages/core`：配置管理、事件总线、插件生命周期和工具函数。
-- `packages/plugin-*`：错误、PV、Metric、资源/API、页面性能、Horn、Logan、Perf 指标插件。
+- `packages/plugin-*`：错误、PV、Metric、资源/API、页面性能、Perf 指标插件。
 - `packages/sdk`：聚合入口，导出 `Monitor` 和 `MonitorClient`。
 - `apps/mock-server`：本地上报接收服务。
 - `apps/playground`：浏览器演示验证应用。
@@ -67,17 +67,6 @@ Monitor.start({
 - `window.Monitor`：SDK 命名空间。
 - `window.monitor`：队列兼容函数，回放历史 `window.monitor = [["init", config]]`。
 - `window._Monitor_`：启动时回放的历史队列。
-
-默认不会挂载 `Owl` / `owl`。如确实需要兼容旧页面，可在启动配置中设置：
-
-```ts
-Monitor.start({
-  project: "legacy",
-  compat: {
-    legacyOwlAlias: true
-  }
-});
-```
 
 ## 指标覆盖
 

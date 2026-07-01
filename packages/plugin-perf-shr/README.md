@@ -37,7 +37,7 @@ scroll 触发 → 开始 rAF 循环 → 逐帧记录时间戳
 
 #### 3. 滚动结束判定（idle 检测）
 
-当 `now - lastScrollChangeTime > idleDelay`（150ms，对齐 owl.js）时判定滚动结束。不依赖 `scrollend` 事件以获得更好的兼容性。
+当 `now - lastScrollChangeTime > idleDelay`（150ms，）时判定滚动结束。不依赖 `scrollend` 事件以获得更好的兼容性。
 
 #### 4. 指标计算
 
@@ -128,11 +128,11 @@ context.cfgManager.getConfig("perf.shr")
 // → { enable, endpoint, sample, timeout, customTags }
 ```
 
-### 与 owl.js 的对齐
+### 与 的对齐
 
-本插件是 owl.js（`refer/owl_1.13.5.js`）`PluginShr` 的重写版本，核心行为已对齐：
+本插件是 （）`PluginShr` 的重写版本，核心行为已对齐：
 
-| 项 | owl.js | plugin-perf-shr |
+| 项 | | plugin-perf-shr |
 |---|---|---|
 | idle 阈值 | 150ms | 150ms ✅ |
 | 事件捕获 | `capture: true` | `capture: true` ✅ |

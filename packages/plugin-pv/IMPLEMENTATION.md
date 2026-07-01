@@ -4,7 +4,7 @@
 
 plugin-pv 是 `@monitor/plugin-pv` 的页面浏览（Page View）上报插件。它负责在页面加载时自动上报一次 PV，并在 SPA（单页应用）路由切换时持续跟踪页面变化。
 
-该插件参考 `refer/owl_1.13.5.js` 的 PV 模块实现，在核心思路上保持一致，同时在架构、可测试性和可配置性方面做了增强。
+该插件参考  的 PV 模块实现，在核心思路上保持一致，同时在架构、可测试性和可配置性方面做了增强。
 
 ---
 
@@ -112,7 +112,7 @@ sequenceDiagram
     Note over State: 所有订阅者全部取消后<br/>自动恢复原始方法
 ```
 
-与 owl.js 直接、不可逆地覆写 `window.history` 不同，plugin-pv 的 `createHistoryRouteWatcher`：
+与 直接、不可逆地覆写 `window.history` 不同，plugin-pv 的 `createHistoryRouteWatcher`：
 
 - 使用 `WeakMap` 在 History 对象上注册状态，**仅在首次订阅时**覆写方法
 - 记录原始 `pushState` / `replaceState` 引用
@@ -160,7 +160,7 @@ sequenceDiagram
     Manager->>Transport: POST body: pageurl=/page-c
 ```
 
-- owl.js 在 `resetPv({ delay: true })` 中实现防抖（`setTimeout` 200ms）
+- 在 `resetPv({ delay: true })` 中实现防抖（`setTimeout` 200ms）
 - plugin-pv 将防抖逻辑收敛到 `PvManager.report({ delay: true })` 中，`resetPv` 仅更新状态
 
 ### 防抖实现
@@ -332,11 +332,11 @@ flowchart TD
 
 ---
 
-## 与 owl.js 的差异
+## 与 的差异
 
-| 维度 | owl.js | plugin-pv | 说明 |
+| 维度 | | plugin-pv | 说明 |
 |------|--------|-----------|------|
-| 架构模式 | 单体 OWL 类，PV 为内部模块 | 独立插件，遵循 Plugin 协议 (`start/stop`) | 可独立启停、组合 |
+| 架构模式 | 单体 类，PV 为内部模块 | 独立插件，遵循 Plugin 协议 (`start/stop`) | 可独立启停、组合 |
 | History Hook | 直接覆写 `window.history.pushState/replaceState`，永远不恢复 | `createHistoryRouteWatcher` 仅首次订阅时覆写，无人订阅时自动恢复 | 非侵入式，多实例安全 |
 | 请求方式 | POST，参数全部在 URL query string | POST，公共参数在 URL，业务数据在 body | 语义更清晰 |
 | 防抖机制 | `resetPv({ delay: true })` 中 200ms 防抖 | `report({ delay: true })` 中 200ms 防抖 | 防抖收敛到上报层 |

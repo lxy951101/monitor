@@ -46,7 +46,6 @@ window.Monitor.client.reportError(new Error("something wrong"));
 - 挂载 `window.monitor`（函数分发器，支持 `window.monitor('start', config)`）
 - 处理预加载队列：SDK 加载前 `window.monitor = [...]` 中的调用会被重放
 - 处理 `window._Monitor_` 队列（异步加载器兼容）
-- 若 `compat.legacyOwlAlias` 开启，同时设置 `window.Owl` / `window.owl`
 
 ### 2. 编程式使用
 

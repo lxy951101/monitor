@@ -2,61 +2,61 @@ import { getPageUrl, type MonitorContext, type Plugin } from "@monitor/core";
 import { createErrorCapture, ErrorManager, type ErrorCapture, type ErrorManagerOptions } from "@monitor/plugin-error";
 
 export interface ErrorPluginOptions
-  extends Omit<Partial<ErrorManagerOptions>, "send" | "cfgManager"> {
-  onReady?: (manager: ErrorManager) => void;
+ extends Omit<Partial<ErrorManagerOptions>, "send" | "cfgManager"> {
+ onReady?: (manager: ErrorManager) => void;
 }
 
 export function createErrorPlugin(options: ErrorPluginOptions = {}): Plugin {
-  let manager: ErrorManager | undefined;
-  let capture: ErrorCapture | undefined;
+ let manager: ErrorManager | undefined;
+ let capture: ErrorCapture | undefined;
 
-  return {
-    name: "@monitor/plugin-error",
-    start(context: MonitorContext) {
-      const config = context.cfgManager.getConfig();
+ return {
+  name: "@monitor/plugin-error",
+  start(context: MonitorContext) {
+   const config = context.cfgManager.getConfig();
 
-      manager = new ErrorManager({
-        ...options,
-        cfgManager: context.cfgManager,
-        send: context.transport.send.bind(context.transport),
-        pageUrl: options.pageUrl ?? getPageUrl(),
-        maxNum: options.maxNum ?? config.error.maxQueueLength,
-        maxTime: options.maxTime ?? config.error.maxTime,
-        delay: options.delay ?? config.error.delay,
-        maxSize: options.maxSize ?? config.error.maxSize,
-        noScriptError: options.noScriptError ?? config.error.noScriptError,
-        formatUnhandledRejection:
-          options.formatUnhandledRejection ?? config.error.formatUnhandledRejection,
-        ignoreList: options.ignoreList ?? config.error.ignoreList
-      });
-      options.onReady?.(manager);
+   manager = new ErrorManager({
+    ...options,
+    cfgManager: context.cfgManager,
+    send: context.transport.send.bind(context.transport),
+    pageUrl: options.pageUrl ?? getPageUrl(),
+    maxNum: options.maxNum ?? config.error.maxQueueLength,
+    maxTime: options.maxTime ?? config.error.maxTime,
+    delay: options.delay ?? config.error.delay,
+    maxSize: options.maxSize ?? config.error.maxSize,
+    noScriptError: options.noScriptError ?? config.error.noScriptError,
+    formatUnhandledRejection:
+     options.formatUnhandledRejection ?? config.error.formatUnhandledRejection,
+    ignoreList: options.ignoreList ?? config.error.ignoreList
+   });
+   options.onReady?.(manager);
 
-      // 对齐 owl.js checkCache：延迟 4000ms 读取并上报历史缓存
-      manager.checkCache();
+   
+   manager.checkCache();
 
-      // 对齐 owl.js detectLeave：自动注册页面离开检测
-      manager.detectLeave();
+   
+   manager.detectLeave();
 
-      if (
-        config.autoCatch.js ||
-        config.autoCatch.unhandledrejection ||
-        config.autoCatch.console
-      ) {
-        capture = createErrorCapture({
-          addError: manager.addError.bind(manager),
-          // 对齐 owl.js：每种事件类型使用专用解析方法
-          onWindowError: manager.parseWindowError.bind(manager),
-          onUnhandledRejection: manager.parsePromiseUnhandled.bind(manager),
-          onConsoleError: manager.parseConsoleError.bind(manager),
-          captureConsoleError: config.autoCatch.console
-        });
-        capture.start();
-      }
-    },
-    stop() {
-      capture?.stop();
-      capture = undefined;
-      manager = undefined;
-    }
-  };
+   if (
+    config.autoCatch.js ||
+    config.autoCatch.unhandledrejection ||
+    config.autoCatch.console
+   ) {
+    capture = createErrorCapture({
+     addError: manager.addError.bind(manager),
+     
+     onWindowError: manager.parseWindowError.bind(manager),
+     onUnhandledRejection: manager.parsePromiseUnhandled.bind(manager),
+     onConsoleError: manager.parseConsoleError.bind(manager),
+     captureConsoleError: config.autoCatch.console
+    });
+    capture.start();
+   }
+  },
+  stop() {
+   capture?.stop();
+   capture = undefined;
+   manager = undefined;
+  }
+ };
 }

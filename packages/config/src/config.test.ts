@@ -1,167 +1,166 @@
 import { describe, expect, it } from "vitest";
 import {
-  API_PATHS,
-  createDefaultConfig,
-  getReportBaseUrl,
-  mergeMonitorConfig
+ API_PATHS,
+ createDefaultConfig,
+ getReportBaseUrl,
+ mergeMonitorConfig
 } from "./index";
 
 describe("配置包", () => {
-  it("默认使用生产上报域名", () => {
-    expect(getReportBaseUrl(false)).toBe("https://report.example.com");
+ it("默认使用生产上报域名", () => {
+  expect(getReportBaseUrl(false)).toBe("https://report.example.com");
+ });
+
+ it("开发模式使用测试上报域名", () => {
+  expect(getReportBaseUrl(true)).toBe("https://report-dev.example.com");
+ });
+
+ it("深合并用户配置且保留 compat 默认值", () => {
+  const config = mergeMonitorConfig(createDefaultConfig(), {
+   project: "demo",
+   page: { delay: 10 }
   });
 
-  it("开发模式使用测试上报域名", () => {
-    expect(getReportBaseUrl(true)).toBe("https://report-dev.example.com");
+  expect(config.project).toBe("demo");
+  expect(config.compat.monitorQueue).toBe(true);
+  expect(config.page.delay).toBe(10);
+  expect(config.autoCatch.js).toBe(true);
+ });
+
+ it("resourceReg 传字符串时能转成 RegExp", () => {
+  const config = mergeMonitorConfig(createDefaultConfig(), {
+   resource: { resourceReg: "\\.(js|css)$" }
   });
 
-  it("深合并用户配置且保留 compat 默认值", () => {
-    const config = mergeMonitorConfig(createDefaultConfig(), {
-      project: "demo",
-      compat: { legacyOwlAlias: true },
-      page: { delay: 10 }
-    });
+  expect(config.resource.resourceReg).toBeInstanceOf(RegExp);
+  expect(config.resource.resourceReg.test("app.js")).toBe(true);
+ });
 
-    expect(config.project).toBe("demo");
-    expect(config.compat.legacyOwlAlias).toBe(true);
-    expect(config.page.delay).toBe(10);
-    expect(config.autoCatch.js).toBe(true);
+ it("apiPaths 包含设计文档所有路径", () => {
+  expect(API_PATHS).toEqual({
+   log: "/api/log",
+   logTs: "/api/logts",
+   speedTs: "/api/speedts",
+   pbBatchTs: "/api/pbbatchts",
+   batchTs: "/api/batchts",
+   metricJTs: "/api/metricjts",
+   pvTs: "/api/pvts",
+   fstSpeed: "/api/fstSpeed",
+   fstLog: "/api/fstLog"
+  });
+ });
+
+ it("默认配置包含所有配置模块", () => {
+  const config = createDefaultConfig();
+
+  expect(config).toEqual(
+   expect.objectContaining({
+    autoCatch: expect.any(Object),
+    page: expect.any(Object),
+    SPA: expect.any(Object),
+    resource: expect.any(Object),
+    ajax: expect.any(Object),
+    image: expect.any(Object),
+    error: expect.any(Object),
+    metric: expect.any(Object),
+    perf: expect.any(Object),
+    bridge: expect.any(Object),
+    compat: expect.any(Object)
+   })
+  );
+ });
+
+ it("bridge 默认使用通用容器桥配置，不包含特定容器开关", () => {
+  const config = createDefaultConfig();
+
+  expect(config.bridge).toEqual({
+   enable: true,
+   preferredMethod: "ffp.record"
+  });
+ });
+
+ it("每次创建默认配置都返回新对象", () => {
+  const first = createDefaultConfig();
+  const second = createDefaultConfig();
+
+  first.autoCatch.js = false;
+  first.page.points.push("custom");
+
+  expect(second.autoCatch.js).toBe(true);
+  expect(second.page.points).not.toContain("custom");
+ });
+
+ it("mergeMonitorConfig(base, {}) 返回值修改嵌套对象不会污染 base", () => {
+  const base = createDefaultConfig();
+  const merged = mergeMonitorConfig(base, {});
+
+  merged.autoCatch.js = false;
+  merged.page.points.push("custom");
+
+  expect(base.autoCatch.js).toBe(true);
+  expect(base.page.points).toEqual([]);
+ });
+
+ it("undefined 不覆盖已有值", () => {
+  const config = mergeMonitorConfig(createDefaultConfig(), {
+   project: undefined,
+   page: { delay: undefined }
   });
 
-  it("resourceReg 传字符串时能转成 RegExp", () => {
-    const config = mergeMonitorConfig(createDefaultConfig(), {
-      resource: { resourceReg: "\\.(js|css)$" }
-    });
+  expect(config.project).toBe("");
+  expect(config.page.delay).toBe(0);
+ });
 
-    expect(config.resource.resourceReg).toBeInstanceOf(RegExp);
-    expect(config.resource.resourceReg.test("app.js")).toBe(true);
+ it("数组覆盖且返回数组不共享 patch 数组引用", () => {
+  const points = ["first"];
+  const config = mergeMonitorConfig(createDefaultConfig(), {
+   page: { points }
   });
 
-  it("apiPaths 包含设计文档所有路径", () => {
-    expect(API_PATHS).toEqual({
-      log: "/api/log",
-      logTs: "/api/logts",
-      speedTs: "/api/speedts",
-      pbBatchTs: "/pbbatchts",
-      batchTs: "/batchts",
-      metricJTs: "/rapi/metricjts",
-      pvTs: "/api/pvts",
-      fstSpeed: "/raptorapi/fstSpeed",
-      fstLog: "/raptorapi/fstLog"
-    });
+  points.push("second");
+  config.page.points.push("third");
+
+  expect(config.page.points).toEqual(["first", "third"]);
+  expect(points).toEqual(["first", "second"]);
+ });
+
+ it("函数覆盖行为正确", () => {
+  const filter = (value: unknown) => Boolean(value);
+  const config = mergeMonitorConfig(createDefaultConfig(), {
+   filters: { custom: filter }
   });
 
-  it("默认配置包含所有配置模块", () => {
-    const config = createDefaultConfig();
+  expect(config.filters.custom).toBe(filter);
+  expect(config.filters.custom("ok")).toBe(true);
+ });
 
-    expect(config).toEqual(
-      expect.objectContaining({
-        autoCatch: expect.any(Object),
-        page: expect.any(Object),
-        SPA: expect.any(Object),
-        resource: expect.any(Object),
-        ajax: expect.any(Object),
-        image: expect.any(Object),
-        error: expect.any(Object),
-        metric: expect.any(Object),
-        perf: expect.any(Object),
-        bridge: expect.any(Object),
-        compat: expect.any(Object)
-      })
-    );
+ it("RegExp 覆盖行为正确", () => {
+  const resourceReg = /\.mjs$/;
+  const config = mergeMonitorConfig(createDefaultConfig(), {
+   resource: { resourceReg }
   });
 
-  it("bridge 默认使用通用容器桥配置，不包含特定容器开关", () => {
-    const config = createDefaultConfig();
+  expect(config.resource.resourceReg).toBe(resourceReg);
+  expect(config.resource.resourceReg.test("entry.mjs")).toBe(true);
+ });
 
-    expect(config.bridge).toEqual({
-      enable: true,
-      preferredMethod: "ffp.record"
-    });
-  });
+ it("未 patch 的嵌套对象也不共享 base 引用", () => {
+  const base = createDefaultConfig();
+  const config = mergeMonitorConfig(base, { project: "demo" });
 
-  it("每次创建默认配置都返回新对象", () => {
-    const first = createDefaultConfig();
-    const second = createDefaultConfig();
+  expect(config.autoCatch).not.toBe(base.autoCatch);
+  expect(config.perf.fsp2).not.toBe(base.perf.fsp2);
 
-    first.autoCatch.js = false;
-    first.page.points.push("custom");
+  config.perf.fsp2.customTags.env = "test";
 
-    expect(second.autoCatch.js).toBe(true);
-    expect(second.page.points).not.toContain("custom");
-  });
+  expect(base.perf.fsp2.customTags.env).toBeUndefined();
+ });
 
-  it("mergeMonitorConfig(base, {}) 返回值修改嵌套对象不会污染 base", () => {
-    const base = createDefaultConfig();
-    const merged = mergeMonitorConfig(base, {});
-
-    merged.autoCatch.js = false;
-    merged.page.points.push("custom");
-
-    expect(base.autoCatch.js).toBe(true);
-    expect(base.page.points).toEqual([]);
-  });
-
-  it("undefined 不覆盖已有值", () => {
-    const config = mergeMonitorConfig(createDefaultConfig(), {
-      project: undefined,
-      page: { delay: undefined }
-    });
-
-    expect(config.project).toBe("");
-    expect(config.page.delay).toBe(0);
-  });
-
-  it("数组覆盖且返回数组不共享 patch 数组引用", () => {
-    const points = ["first"];
-    const config = mergeMonitorConfig(createDefaultConfig(), {
-      page: { points }
-    });
-
-    points.push("second");
-    config.page.points.push("third");
-
-    expect(config.page.points).toEqual(["first", "third"]);
-    expect(points).toEqual(["first", "second"]);
-  });
-
-  it("函数覆盖行为正确", () => {
-    const filter = (value: unknown) => Boolean(value);
-    const config = mergeMonitorConfig(createDefaultConfig(), {
-      filters: { custom: filter }
-    });
-
-    expect(config.filters.custom).toBe(filter);
-    expect(config.filters.custom("ok")).toBe(true);
-  });
-
-  it("RegExp 覆盖行为正确", () => {
-    const resourceReg = /\.mjs$/;
-    const config = mergeMonitorConfig(createDefaultConfig(), {
-      resource: { resourceReg }
-    });
-
-    expect(config.resource.resourceReg).toBe(resourceReg);
-    expect(config.resource.resourceReg.test("entry.mjs")).toBe(true);
-  });
-
-  it("未 patch 的嵌套对象也不共享 base 引用", () => {
-    const base = createDefaultConfig();
-    const config = mergeMonitorConfig(base, { project: "demo" });
-
-    expect(config.autoCatch).not.toBe(base.autoCatch);
-    expect(config.perf.fsp2).not.toBe(base.perf.fsp2);
-
-    config.perf.fsp2.customTags.env = "test";
-
-    expect(base.perf.fsp2.customTags.env).toBeUndefined();
-  });
-
-  it("非法 resourceReg 字符串抛出 SyntaxError", () => {
-    expect(() =>
-      mergeMonitorConfig(createDefaultConfig(), {
-        resource: { resourceReg: "[" }
-      })
-    ).toThrow(SyntaxError);
-  });
+ it("非法 resourceReg 字符串抛出 SyntaxError", () => {
+  expect(() =>
+   mergeMonitorConfig(createDefaultConfig(), {
+    resource: { resourceReg: "[" }
+   })
+  ).toThrow(SyntaxError);
+ });
 });
