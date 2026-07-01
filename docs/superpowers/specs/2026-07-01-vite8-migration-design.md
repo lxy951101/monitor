@@ -24,6 +24,8 @@
 | vitest | `^2.0` | `^4.1` | Vite 8 兼容，原生 Node 执行、测试标签 |
 | typescript | `^5.5` | `^7.0` | Go 编译器重写，类型检查 10x 加速 |
 | @types/node | `^20.14` | `^22` | Node 22 LTS 对齐 |
+| oxlint | — | `^1.x` | 🆕 Rust 语言规范检查，替代 ESLint |
+| oxc-formatter | — | `^0.x` | 🆕 Rust 代码格式化，替代 Prettier |
 | pnpm | `9.0.0` | 不变 | — |
 
 > **Node.js 要求：** Vite 8 需要 Node.js 20.19+ 或 22.12+。当前 `@types/node@^22` 已对齐 Node 22 LTS。
@@ -203,7 +205,64 @@ export { Monitor };
 
 ---
 
-## 六、其他应用处理
+## 六、Oxc 格式检查（新增）
+
+### 背景
+
+项目当前无 ESLint 或 Prettier。Vite 8 已将 JavaScript 转换引擎从 esbuild 切换到 Oxc，趁此机会把 lint 和格式化也统一到 Oxc 生态，实现**全 Rust 工具链**：
+
+```
+构建（Rolldown） + 转换（Oxc） + 类型检查（TypeScript 7 Go） + Lint/Format（Oxc）
+```
+
+### oxlint
+
+- **Rust 实现**，冷启动 < 100ms，比 ESLint 快 50-100x
+- 内置 400+ 规则，兼容大量 ESLint 规则命名
+- `.oxlintrc.json` 配置文件，按需启用/禁用规则
+- 默认零配置运行即可覆盖常见问题
+
+### oxc_formatter
+
+- **Rust 实现**，格式化为 Prettier 兼容输出（2 space / 单引号 / 尾逗号 等）
+- `oxfmt` 命令行工具
+- CI 中用 `oxfmt --check` 做格式验证，本地 `oxfmt --write` 自动修复
+
+### 集成方式
+
+```json
+// package.json scripts
+{
+  "lint": "oxlint",
+  "format": "oxfmt --write .",
+  "format:check": "oxfmt --check ."
+}
+```
+
+### 与现有代码的关系
+
+- 接入后首次运行会报告大量格式差异，建议在迁移分支上**一次性**执行 `oxfmt --write`，做一次全量格式化提交
+- lint 规则从宽松开始：仅启用 `correctness` 类别，后续逐步收紧
+- 不做 pre-commit hook（保持开发体验轻量），CI 中通过 `pnpm format:check && pnpm lint` 把关
+
+### 配置模板
+
+```jsonc
+// .oxlintrc.json
+{
+  "rules": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  }
+}
+```
+
+Vite 8 项目已内置 Oxc，oxlint 和 oxfmt 作为独立 CLI 包安装，不与 Vite 构建流程耦合。
+
+---
+
+## 七、其他应用处理
 
 ### mock-server
 
@@ -218,7 +277,7 @@ Node.js 服务，不参与浏览器构建。仅升级其 tsconfig 引用和 devD
 
 ---
 
-## 七、风险与缓解
+## 八、风险与缓解
 
 | 风险 | 可能性 | 缓解措施 |
 |------|--------|----------|
@@ -226,6 +285,7 @@ Node.js 服务，不参与浏览器构建。仅升级其 tsconfig 引用和 devD
 | 现有插件不兼容 Rolldown | 低 | 当前项目无第三方 Vite/Rollup 插件，仅纯 lib 构建 |
 | 类型声明生成行为变化 | 中 | 如 `vite-plugin-dts` 不兼容则改用 Rolldown 原生声明输出 |
 | 构建产物体积变化 | 低 | Rolldown tree-shaking 比 Rollup 更激进，可能更小 |
+| oxfmt 首次全量格式化 diff 过大 | 中 | 作为独立 commit，与功能改动分离，便于 review |
 
 ### 回滚策略
 
@@ -235,14 +295,16 @@ Node.js 服务，不参与浏览器构建。仅升级其 tsconfig 引用和 devD
 
 ---
 
-## 八、迁移步骤
+## 九、迁移步骤
 
 1. 创建 `packages/build-config`，实现 `createLibConfig()` 工厂和 `resolveAlias` 工具函数
 2. 升级根目录依赖（vite、vitest、typescript、@types/node）
-3. 逐个改造 14 个包的 `vite.config.ts`，改为使用工厂函数
-4. 改造 `vitest.workspace.ts`，别名改用 `build-config` 导出
-5. 改造 playground 的 vite.config.ts
-6. 创建 `packages/bundle`，实现全量 IIFE 打包（`packages/*` 通配已覆盖，无需改 pnpm-workspace.yaml）
-7. 运行 `pnpm install`
-8. 全量 `pnpm build` + `pnpm test:run` 回归验证
-9. 提交、code review
+3. 安装 oxlint + oxc-formatter，添加配置文件（`.oxlintrc.json`）和 npm scripts
+4. 执行 `pnpm format` 做全量代码格式化（一次性提交）
+5. 逐个改造 14 个包的 `vite.config.ts`，改为使用工厂函数
+6. 改造 `vitest.workspace.ts`，别名改用 `build-config` 导出
+7. 改造 playground 的 vite.config.ts
+8. 创建 `packages/bundle`，实现全量 IIFE 打包（`packages/*` 通配已覆盖，无需改 pnpm-workspace.yaml）
+9. 运行 `pnpm install`
+10. 全量 `pnpm build` + `pnpm typecheck` + `pnpm lint` + `pnpm format:check` + `pnpm test:run` 回归验证
+11. 提交、code review
