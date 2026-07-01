@@ -12,6 +12,15 @@ export class EventBus<Events extends EventMap<Events> = Record<string, unknown[]
     return () => this.off(event, listener);
   }
 
+  once<Key extends keyof Events>(event: Key, listener: EventListener<Events[Key]>): () => void {
+    const wrapper = ((...args: Events[Key]) => {
+      this.off(event, wrapper as EventListener);
+      listener(...args);
+    }) as EventListener<Events[Key]>;
+
+    return this.on(event, wrapper);
+  }
+
   off<Key extends keyof Events>(event: Key, listener?: EventListener<Events[Key]>): void {
     if (listener === undefined) {
       this.listeners.delete(event);

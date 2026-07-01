@@ -1,11 +1,20 @@
-export function getCookie(name: string, cookie?: string): string | undefined {
-  const source = cookie ?? getRuntimeCookie();
+export interface GetCookieOptions {
+  /** 自定义 cookie 字符串（用于测试/SSR），默认读取 document.cookie */
+  cookie?: string;
+  /** 是否返回原始值（跳过 decodeURIComponent），默认 false */
+  raw?: boolean;
+}
+
+export function getCookie(name: string, options: GetCookieOptions = {}): string | undefined {
+  const source = options.cookie ?? getRuntimeCookie();
 
   for (const part of source.split(";")) {
     const [rawKey, ...rawValue] = part.trim().split("=");
 
     if (rawKey === name) {
-      return decodeURIComponent(rawValue.join("="));
+      const raw = rawValue.join("=");
+
+      return options.raw ? raw : decodeURIComponent(raw);
     }
   }
 

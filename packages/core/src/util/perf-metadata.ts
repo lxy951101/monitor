@@ -93,5 +93,22 @@ function formatScreen(screen?: Pick<Screen, "width" | "height">): string {
 }
 
 function createVisitId(): string {
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const suffix = randomHex(6);
+
+  return `${Date.now()}-${suffix}`;
+}
+
+function randomHex(byteLength: number): string {
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    const bytes = crypto.getRandomValues(new Uint8Array(byteLength));
+    let hex = "";
+
+    for (const byte of bytes) {
+      hex += byte.toString(16).padStart(2, "0");
+    }
+
+    return hex;
+  }
+
+  return Math.random().toString(16).slice(2, 2 + byteLength * 2);
 }

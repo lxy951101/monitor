@@ -22,14 +22,46 @@ interface HistoryWatcherState {
 
 interface HistorySubscription {
   handler: RouteChangeHandler;
+  onError?: (error: unknown) => void;
+}
+
+export function parseRoutePath(url: string): string {
+  // 提取 pathname（兼容完整 URL 和 path-only 输入）
+  let path: string;
+
+  if (/^https?:\/\//i.test(url) || url.startsWith("//")) {
+    try {
+      const parsed = new URL(url, "http://_");
+      path = parsed.pathname;
+    } catch {
+      path = url;
+    }
+  } else {
+    path = url;
+  }
+
+  // 去除 query string
+  const hashIndex = path.indexOf("#");
+  const pathWithoutHash = hashIndex === -1 ? path : path.slice(0, hashIndex);
+  const hash = hashIndex === -1 ? "" : path.slice(hashIndex);
+  const queryIndex = pathWithoutHash.indexOf("?");
+  const cleanPath = queryIndex === -1 ? pathWithoutHash : pathWithoutHash.slice(0, queryIndex);
+
+  // 保留 query 在 hash 中的场景（如 SPA 的 #/route?id=1）
+  if (hash.includes("?")) {
+    return `${cleanPath}${hash}`;
+  }
+
+  return cleanPath;
 }
 
 export function createHistoryRouteWatcher(
   env: RouteWatcherEnv,
-  onChange: RouteChangeHandler
+  onChange: RouteChangeHandler,
+  onError?: (error: unknown) => void
 ): StopWatcher {
   const state = ensureHistoryWatcher(env);
-  const subscription = { handler: onChange };
+  const subscription = { handler: onChange, onError };
   let stopped = false;
   state.subscriptions.add(subscription);
 
@@ -49,9 +81,12 @@ export function createHistoryRouteWatcher(
 
 export function createHashRouteWatcher(
   env: Pick<RouteWatcherEnv, "location" | "addEventListener" | "removeEventListener">,
-  onChange: RouteChangeHandler
+  onChange: RouteChangeHandler,
+  onError?: (error: unknown) => void
 ): StopWatcher {
-  const onHashChange = () => onChange(env.location.href);
+  const onHashChange = () => {
+    safeInvoke(onChange, env.location.href, onError);
+  };
 
   env.addEventListener("hashchange", onHashChange);
 
@@ -76,26 +111,40 @@ function createHistoryWatcherState(env: RouteWatcherEnv): HistoryWatcherState {
   const originalPushState = env.history.pushState.bind(env.history);
   const originalReplaceState = env.history.replaceState.bind(env.history);
   const subscriptions = new Set<HistorySubscription>();
-  const notify = () => {
+  let lastPath = parseRoutePath(env.location.href);
+
+  const notify = (newUrl: string) => {
+    const newPath = parseRoutePath(newUrl);
+
+    // 路径未变则不通知
+    if (newPath === lastPath) {
+      return;
+    }
+
+    lastPath = newPath;
+
     for (const subscription of [...subscriptions]) {
-      subscription.handler(env.location.href);
+      safeInvoke(subscription.handler, newUrl, subscription.onError);
     }
   };
 
   env.history.pushState = ((...args: Parameters<RouteWatcherEnv["history"]["pushState"]>) => {
+    const url = args[2];
     originalPushState(...args);
-    notify();
+    notify(url !== undefined ? String(url) : env.location.href);
   }) as RouteWatcherEnv["history"]["pushState"];
+
   env.history.replaceState = ((...args: Parameters<RouteWatcherEnv["history"]["replaceState"]>) => {
+    const url = args[2];
     originalReplaceState(...args);
-    notify();
+    notify(url !== undefined ? String(url) : env.location.href);
   }) as RouteWatcherEnv["history"]["replaceState"];
 
   return {
     subscriptions,
     originalPushState,
     originalReplaceState,
-    onPopState: notify
+    onPopState: () => notify(env.location.href)
   };
 }
 
@@ -104,4 +153,16 @@ function restoreHistoryWatcher(env: RouteWatcherEnv, state: HistoryWatcherState)
   env.history.replaceState = state.originalReplaceState;
   env.removeEventListener("popstate", state.onPopState);
   historyWatchers.delete(env.history);
+}
+
+function safeInvoke(
+  handler: RouteChangeHandler,
+  url: string,
+  onError?: (error: unknown) => void
+): void {
+  try {
+    handler(url);
+  } catch (error) {
+    onError?.(error);
+  }
 }

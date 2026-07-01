@@ -12,7 +12,25 @@ import { appendQueryParams, type QueryParams } from "@monitor/protocol";
 type ApiKey = keyof typeof API_PATHS;
 type RandomFn = () => number;
 type SampleKey = "page" | "resource" | "ajax" | "api" | "error" | "metric";
-export type SamplePatch = Partial<Record<SampleKey, number>>;
+export type SamplePatch = Partial<Record<SampleKey, number>> & {
+  custom?: Record<string, number>;
+};
+
+const SAMPLE_KEYS: ReadonlySet<string> = new Set<SampleKey>([
+  "page",
+  "resource",
+  "ajax",
+  "api",
+  "error",
+  "metric"
+]);
+
+const DEFAULT_REMOTE_SAMPLING_KEY_MAP: Record<string, SampleKey> = {
+  performance: "page",
+  request: "api",
+  log: "error",
+  resource: "resource"
+};
 
 export type CoreConfig = MonitorConfig & {
   endpoints: Partial<Record<ApiKey, string>>;
@@ -30,17 +48,21 @@ export type CoreConfigPatch = MonitorConfigPatch & {
 
 export interface CfgManagerOptions {
   random?: RandomFn;
+  /** 远程采样配置的 key 映射：远程 key -> 本地 SampleKey */
+  remoteSamplingKeyMap?: Record<string, SampleKey>;
 }
 
 export class CfgManager {
   private config: CoreConfig;
   private random: RandomFn;
+  private readonly remoteSamplingKeyMap: Record<string, SampleKey>;
   private readonly firstProjectRequest = new Set<string>();
   private readonly sampleMap = new Map<string, SamplePatch>();
   private baseSampling: SamplePatch;
 
   constructor(patch: CoreConfigPatch = {}, options: CfgManagerOptions = {}) {
     this.random = options.random ?? Math.random;
+    this.remoteSamplingKeyMap = options.remoteSamplingKeyMap ?? DEFAULT_REMOTE_SAMPLING_KEY_MAP;
     this.config = this.createConfig(patch);
     this.baseSampling = readSampling(this.config);
   }
@@ -70,7 +92,7 @@ export class CfgManager {
     return appendQueryParams(`${this.config.reportBaseUrl}${path}`, query);
   }
 
-  isSampled(key: SampleKey, project = this.config.project): boolean {
+  isSampled(key: SampleKey | string, project = this.config.project): boolean {
     const sample = this.getSampleValue(key, project);
 
     if (sample >= 1) {
@@ -119,9 +141,14 @@ export class CfgManager {
   }
 
   applyRemoteSampling(sampling: SamplePatch): void {
+    const remapped = this.remapRemoteSampling(sampling);
     const projectSampling = {
       ...this.sampleMap.get(this.config.project),
-      ...normalizeSampling(sampling)
+      ...normalizeSampling(remapped),
+      custom: {
+        ...this.sampleMap.get(this.config.project)?.custom,
+        ...remapped.custom
+      }
     };
 
     this.sampleMap.set(this.config.project, projectSampling);
@@ -188,11 +215,58 @@ export class CfgManager {
     return query;
   }
 
-  private getSampleValue(key: SampleKey, project: string): number {
-    const fromMap = this.sampleMap.get(project)?.[key];
-    if (fromMap !== undefined) return fromMap;
+  private remapRemoteSampling(sampling: SamplePatch): SamplePatch {
+    const remapped: SamplePatch = {};
+
+    for (const [key, value] of Object.entries(sampling) as Array<[string, number | Record<string, number>]>) {
+      if (key === "custom") {
+        remapped.custom = { ...(value as Record<string, number>) };
+        continue;
+      }
+
+      if (typeof value !== "number") {
+        continue;
+      }
+
+      // 1. 通过映射表查找
+      const mappedKey = this.remoteSamplingKeyMap[key];
+
+      if (mappedKey !== undefined) {
+        remapped[mappedKey] = value;
+        continue;
+      }
+
+      // 2. 已知 SampleKey 直通
+      if (SAMPLE_KEYS.has(key)) {
+        remapped[key as SampleKey] = value;
+        continue;
+      }
+
+      // 3. 未识别的 key 放入 custom 桶
+      remapped.custom = { ...remapped.custom, [key]: value };
+    }
+
+    return remapped;
+  }
+
+  private getSampleValue(key: string, project: string): number {
+    const projectSampling = this.sampleMap.get(project);
+
+    // 先查远程采样
+    const fromMap = projectSampling?.[key as SampleKey];
+    if (fromMap !== undefined) return fromMap as number;
+
+    // 自定义 key 从 custom 桶查找
+    const fromCustom = projectSampling?.custom?.[key];
+    if (fromCustom !== undefined) return fromCustom;
+
+    // 标准 key 从 config 读取
     if (key === "api") return this.config.resource?.sampleApi ?? 1;
-    return (this.config as unknown as Record<string, { sample?: number }>)[key]?.sample ?? 1;
+
+    const configSection = (this.config as unknown as Record<string, { sample?: number }>)[key];
+    if (configSection?.sample !== undefined) return configSection.sample;
+
+    return 1;
   }
 
   private syncProjectSampling(previousProject: string): void {
@@ -207,9 +281,15 @@ export class CfgManager {
   }
 
   private applySampling(sampling: SamplePatch): void {
-    for (const [key, sample] of Object.entries(sampling) as Array<[SampleKey, number]>) {
-      if (sample !== undefined) {
-        (this.config as unknown as Record<string, { sample?: number }>)[key].sample = sample;
+    for (const [key, sample] of Object.entries(sampling)) {
+      if (key === "custom" || sample === undefined) {
+        continue;
+      }
+
+      const configSection = (this.config as unknown as Record<string, { sample?: number }>)[key];
+
+      if (configSection) {
+        configSection.sample = sample as number;
       }
     }
   }
