@@ -95,7 +95,11 @@ function reportStableSuccess(manager: Fsp2Manager, state: Fsp2ClsRuntimeState, t
     cls: {
       pageLoadedTime: state.pageLoadedTime,
       pageStable: true,
-      loadedStableGap: Math.max(0, timestamp - state.pageLoadedTime)
+      loadedStableGap: Math.max(0, timestamp - state.pageLoadedTime),
+      calibrateEndType: "success",
+      clsCycleLength: 200,
+      clsCycleNum: state.totalClsCycleCount,
+      clsCycleThreshold: 0.02
     },
     costMs: state.costMs
   });

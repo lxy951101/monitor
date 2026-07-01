@@ -1,11 +1,11 @@
 import type { MonitorContext, Plugin } from "@monitor/core";
 import { PerfCache, sendWithPerfCache } from "@monitor/plugin-perf-cache";
 import { createPerfCustomPayload, type PerfLog } from "@monitor/protocol";
-import type { TransportRequest, TransportResponse } from "@monitor/transport";
+import type { BridgeCallbacks, BridgeLike, TransportRequest, TransportResponse } from "@monitor/transport";
 
 export const packageName = "@monitor/plugin-perf-shr";
 
-const FRAME_BUDGET = 16.7;
+const FRAME_BUDGET = 1000 / 60;
 type SendFn = (request: TransportRequest) => Promise<TransportResponse | void>;
 
 export interface ScrollMetricsInput {
@@ -18,18 +18,20 @@ export interface ScrollMetrics extends PerfLog {
   duration: number;
   frames: number;
   fps: number;
-  droppedFrames: number;
-  droppedRate: number;
+  frameDropRate: number;
 }
 
 export interface ShrManagerOptions {
   send: SendFn;
   endpoint: string;
+  project?: string;
+  pagePath?: string;
   sample?: number;
   timeout?: number;
   tags?: Record<string, string>;
   cache?: PerfCache;
   random?: () => number;
+  containerBridge?: BridgeLike;
 }
 
 export class ShrManager {
@@ -44,7 +46,31 @@ export class ShrManager {
       return;
     }
 
-    await sendWithPerfCache(this.createRequest(calculateScrollMetrics(input)), this.options.send, this.options.cache);
+    const metrics = calculateScrollMetrics(input);
+    if (this.options.containerBridge) {
+      await this.reportContainerEnd(input);
+      return;
+    }
+    await sendWithPerfCache(this.createRequest(metrics), this.options.send, this.options.cache);
+  }
+
+  async reportScrollState(scrollStartTime: number, scrollEndTime: number, costMs = 0): Promise<void> {
+    if (!this.options.containerBridge) {
+      return;
+    }
+    await reportWithContainerBridge(this.options.containerBridge, {
+      pagePath: this.options.pagePath ?? "",
+      techStack: "knb",
+      scrollStartTime,
+      scrollEndTime,
+      extra: {
+        ...(this.options.tags ?? {}),
+        $sr: Math.min(this.options.sample ?? 1, 1),
+        appId: this.options.project ?? "",
+        gatherSource: "js",
+        costMs
+      }
+    });
   }
 
   private createRequest(metrics: ScrollMetrics): TransportRequest {
@@ -62,6 +88,10 @@ export class ShrManager {
       }
     };
   }
+
+  private async reportContainerEnd(input: ScrollMetricsInput): Promise<void> {
+    await this.reportScrollState(input.startTime, input.endTime, 0);
+  }
 }
 
 export interface ShrPluginOptions {
@@ -70,15 +100,20 @@ export interface ShrPluginOptions {
   random?: () => number;
   runtime?: ShrRuntime;
   idleDelay?: number;
+  containerBridge?: BridgeLike;
+  metadata?: {
+    project?: string;
+    pagePath?: string;
+  };
 }
 
 export interface ShrRuntime {
-  addEventListener: (type: "scroll", listener: () => void) => void;
-  removeEventListener: (type: "scroll", listener: () => void) => void;
+  addEventListener: (type: "scroll", listener: (event?: { target?: unknown }) => void, options?: AddEventListenerOptions) => void;
+  removeEventListener: (type: "scroll", listener: (event?: { target?: unknown }) => void) => void;
   requestAnimationFrame: (callback: (time: number) => void) => number;
-  setTimeout: (callback: () => void, delay: number) => ReturnType<typeof setTimeout>;
-  clearTimeout: (timer: ReturnType<typeof setTimeout>) => void;
+  cancelAnimationFrame?: (id: number) => void;
   now: () => number;
+  getScrollValue?: (target: unknown) => number;
 }
 
 export function createShrPlugin(options: ShrPluginOptions = {}): Plugin {
@@ -95,11 +130,14 @@ export function createShrPlugin(options: ShrPluginOptions = {}): Plugin {
       manager = new ShrManager({
         send: context.transport.send.bind(context.transport),
         endpoint: perf.shr.endpoint,
+        project: options.metadata?.project ?? context.cfgManager.getConfig("project"),
+        pagePath: options.metadata?.pagePath,
         sample: perf.shr.sample,
         timeout: perf.shr.timeout,
         tags: perf.shr.customTags,
         cache: options.cache,
-        random: options.random
+        random: options.random,
+        containerBridge: options.containerBridge
       });
       options.onReady?.(manager);
       stopWatch = watchScrollRuntime(manager, options.runtime, options.idleDelay);
@@ -115,23 +153,22 @@ export function createShrPlugin(options: ShrPluginOptions = {}): Plugin {
 export function calculateScrollMetrics(input: ScrollMetricsInput): ScrollMetrics {
   const duration = Math.max(0, input.endTime - input.startTime);
   const frames = input.frameTimes.length;
-  const droppedFrames = countDroppedFrames(input.frameTimes);
+  const frameTimeDiff = calculateFrameTimeDiff(input.frameTimes);
   return {
     duration,
     frames,
     fps: duration > 0 ? Math.round((frames * 1000) / duration) : 0,
-    droppedFrames,
-    droppedRate: frames > 0 ? droppedFrames / frames : 0
+    frameDropRate: duration > 0 ? Math.round((frameTimeDiff / duration) * 1000) : 0
   };
 }
 
-function countDroppedFrames(frameTimes: number[]): number {
-  let dropped = 0;
+function calculateFrameTimeDiff(frameTimes: number[]): number {
+  let diff = 0;
   for (let index = 1; index < frameTimes.length; index += 1) {
     const gap = frameTimes[index] - frameTimes[index - 1];
-    dropped += Math.max(0, Math.round(gap / FRAME_BUDGET) - 1);
+    diff += Math.max(0, gap - FRAME_BUDGET);
   }
-  return dropped;
+  return diff;
 }
 
 function isSampled(sample = 1, random: () => number = Math.random): boolean {
@@ -153,24 +190,63 @@ function watchScrollRuntime(manager: ShrManager, runtime = getRuntime(), idleDel
 
 function createScrollState(manager: ShrManager, runtime: ShrRuntime, idleDelay: number) {
   const frameTimes: number[] = [];
-  let startTime: number | undefined;
-  let idleTimer: ReturnType<typeof setTimeout> | undefined;
-  const captureFrame = (time: number) => frameTimes.push(time);
+  let startTime = 0;
+  let lastScrollValue = 0;
+  let lastScrollChangeTime = runtime.now();
+  let animationFrameId: number | undefined;
+  let isScrolling = false;
+  let scrollTarget: unknown;
   const stop = () => {
-    if (idleTimer) {
-      runtime.clearTimeout(idleTimer);
-      idleTimer = undefined;
+    if (animationFrameId !== undefined) {
+      runtime.cancelAnimationFrame?.(animationFrameId);
+      animationFrameId = undefined;
     }
   };
-  const onScroll = () => {
-    startTime ??= runtime.now();
-    runtime.requestAnimationFrame(captureFrame);
-    stop();
-    idleTimer = runtime.setTimeout(() => {
-      void manager.report({ startTime: startTime ?? runtime.now(), endTime: runtime.now(), frameTimes: [...frameTimes] });
-      startTime = undefined;
+  const onScroll = (event?: { target?: unknown }) => {
+    const target = event?.target;
+    if (isScrolling && target !== scrollTarget) {
+      return;
+    }
+    const now = runtime.now();
+    const currentValue = getScrollValue(runtime, target);
+    if (currentValue !== lastScrollValue) {
+      lastScrollValue = currentValue;
+      lastScrollChangeTime = now;
+    }
+    if (!isScrolling) {
+      isScrolling = true;
+      scrollTarget = target;
+      startTime = now;
+      void manager.reportScrollState(startTime, 0);
+      startTracking();
+    }
+  };
+  const startTracking = () => {
+    if (animationFrameId !== undefined) {
+      return;
+    }
+    animationFrameId = runtime.requestAnimationFrame(trackFrame);
+  };
+  const trackFrame = (time: number) => {
+    animationFrameId = undefined;
+    frameTimes.push(time);
+    const now = runtime.now();
+    const currentValue = getScrollValue(runtime, scrollTarget);
+    if (currentValue !== lastScrollValue) {
+      lastScrollValue = currentValue;
+      lastScrollChangeTime = now;
+    }
+    if (isScrolling && now - lastScrollChangeTime > idleDelay) {
+      const endTime = lastScrollChangeTime;
+      void manager.report({ startTime, endTime, frameTimes: [...frameTimes] });
+      isScrolling = false;
+      scrollTarget = undefined;
       frameTimes.length = 0;
-    }, idleDelay);
+      return;
+    }
+    if (isScrolling) {
+      animationFrameId = runtime.requestAnimationFrame(trackFrame);
+    }
   };
   return { onScroll, stop };
 }
@@ -184,8 +260,32 @@ function getRuntime(): ShrRuntime | undefined {
     addEventListener: window.addEventListener.bind(window),
     removeEventListener: window.removeEventListener.bind(window),
     requestAnimationFrame: window.requestAnimationFrame.bind(window),
-    setTimeout,
-    clearTimeout,
-    now: performance.now.bind(performance)
+    cancelAnimationFrame: window.cancelAnimationFrame.bind(window),
+    now: performance.now.bind(performance),
+    getScrollValue: (target) => {
+      if (!target || target === document || target === document.documentElement) {
+        return window.scrollY || document.documentElement.scrollTop;
+      }
+      return typeof (target as { scrollTop?: unknown }).scrollTop === "number"
+        ? (target as { scrollTop: number }).scrollTop
+        : 0;
+    }
   };
+}
+
+function getScrollValue(runtime: ShrRuntime, target: unknown): number {
+  return runtime.getScrollValue?.(target) ?? 0;
+}
+
+function reportWithContainerBridge(bridge: BridgeLike, event: Record<string, unknown>): Promise<void> {
+  const method = bridge["shr.sendScrollStateTime"];
+  if (typeof method !== "function") {
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    (method as (event: Record<string, unknown>, callbacks: BridgeCallbacks) => void)(event, {
+      success: () => resolve(),
+      fail: (error) => reject(error instanceof Error ? error : new Error("shr bridge failed"))
+    });
+  });
 }

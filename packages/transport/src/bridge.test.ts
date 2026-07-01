@@ -82,4 +82,55 @@ describe("createContainerBridgeReporter", () => {
 
     expect(fspRecord).toHaveBeenCalledTimes(1);
   });
+
+  it("桥方法暂不可用时缓存事件，后续可用时先补发缓存", async () => {
+    const storage = createMemoryStorage();
+    const reporterWithoutBridge = createContainerBridgeReporter({
+      bridge: {},
+      preferMSI: false,
+      cacheStorage: storage
+    });
+
+    await expect(reporterWithoutBridge.reportFsp2({ eType: "success", createMs: 100 })).resolves.toEqual({
+      ok: true,
+      status: 0,
+      cached: true
+    });
+
+    const ffpRecord = vi.fn((_event: unknown, callbacks: { success: () => void }) => {
+      callbacks.success();
+    });
+    const reporterWithBridge = createContainerBridgeReporter({
+      bridge: { "ffp.record": ffpRecord },
+      preferMSI: false,
+      cacheStorage: storage
+    });
+
+    await reporterWithBridge.reportFsp2({ eType: "timeout", createMs: 200 });
+
+    expect(ffpRecord).toHaveBeenNthCalledWith(
+      1,
+      { eType: "success", createMs: 100 },
+      expect.objectContaining({ success: expect.any(Function), fail: expect.any(Function) })
+    );
+    expect(ffpRecord).toHaveBeenNthCalledWith(
+      2,
+      { eType: "timeout", createMs: 200 },
+      expect.objectContaining({ success: expect.any(Function), fail: expect.any(Function) })
+    );
+    expect(storage.getItem("monitor_container_bridge_cache")).toBeNull();
+  });
 });
+
+function createMemoryStorage() {
+  const data = new Map<string, string>();
+  return {
+    getItem: (key: string) => data.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      data.set(key, value);
+    },
+    removeItem: (key: string) => {
+      data.delete(key);
+    }
+  };
+}

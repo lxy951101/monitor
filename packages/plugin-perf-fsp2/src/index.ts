@@ -34,6 +34,10 @@ export interface Fsp2ClsMetrics {
   pageLoadedTime: number;
   pageStable: boolean;
   loadedStableGap: number;
+  calibrateEndType?: Fsp2Status;
+  clsCycleLength?: number;
+  clsCycleNum?: number;
+  clsCycleThreshold?: number;
 }
 
 export interface Fsp2Metrics extends PerfLog {
@@ -170,6 +174,10 @@ export class Fsp2Manager {
         renderRate: Number(metrics.renderRate ?? 0),
         mutationCount: Number(metrics.mutationCount ?? 0),
         costMs: Number(metrics.costMs ?? 0),
+        calibrateEndType: input.cls?.calibrateEndType,
+        clsCycleLength: input.cls?.clsCycleLength,
+        clsCycleNum: input.cls?.clsCycleNum,
+        clsCycleThreshold: input.cls?.clsCycleThreshold,
         pageLoadedTime: input.cls?.pageLoadedTime,
         pageStable: input.cls?.pageStable,
         loadedStableGap: input.cls?.loadedStableGap

@@ -161,19 +161,23 @@ function startFspCheck(
   state: Fsp2WatchState,
   stop: () => void
 ): void {
-  state.timer = resetTimer(manager, runtime, state, stop);
-  if (state.detector && runtime.document?.body && runtime.MutationObserver) {
-    if (checkInitialScreen(runtime, state)) {
-      finishSuccess(manager, state, stop, state.now());
-      return;
+  try {
+    state.timer = resetTimer(manager, runtime, state, stop);
+    if (state.detector && runtime.document?.body && runtime.MutationObserver) {
+      if (checkInitialScreen(runtime, state)) {
+        finishSuccess(manager, state, stop, state.now());
+        return;
+      }
+      state.observer = createMutationObserver(runtime.MutationObserver, manager, runtime, state, stop);
+      state.observer.observe(runtime.document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true
+      });
+      startInteractionListener(runtime, state);
     }
-    state.observer = createMutationObserver(runtime.MutationObserver, manager, runtime, state, stop);
-    state.observer.observe(runtime.document.body, {
-      childList: true,
-      subtree: true,
-      characterData: true
-    });
-    startInteractionListener(runtime, state);
+  } catch {
+    finishByError(manager, state, stop);
   }
 }
 
@@ -194,20 +198,24 @@ function createMutationObserver(
   stop: () => void
 ) {
   return new Observer((records) => {
-    const timestamp = state.now();
-    state.originMutationCount += 1;
-    const elements = measureCost(state, () => collectMutationElements(records, runtime, state.useIgnore));
-    if (elements.length === 0 || !state.detector) {
-      return;
-    }
+    try {
+      const timestamp = state.now();
+      state.originMutationCount += 1;
+      const elements = measureCost(state, () => collectMutationElements(records, runtime, state.useIgnore));
+      if (elements.length === 0 || !state.detector) {
+        return;
+      }
 
-    state.fspMutationTimestamp = timestamp;
-    state.mutationCount += 1;
-    if (measureCost(state, () => state.detector?.checkElements(elements, timestamp))) {
-      finishSuccess(manager, state, stop, timestamp);
-      return;
+      state.fspMutationTimestamp = timestamp;
+      state.mutationCount += 1;
+      if (measureCost(state, () => state.detector?.checkElements(elements, timestamp))) {
+        finishSuccess(manager, state, stop, timestamp);
+        return;
+      }
+      state.timer = resetTimer(manager, runtime, state, stop);
+    } catch {
+      finishByError(manager, state, stop);
     }
-    state.timer = resetTimer(manager, runtime, state, stop);
   });
 }
 
@@ -264,13 +272,20 @@ function finishByTimeout(
   state: Fsp2WatchState,
   stop: () => void
 ): void {
-  const timestamp = state.now();
-  const body = runtime.document?.body;
-  const elements = body
-    ? measureCost(state, () => getLeafElements(body, runtime, state.useIgnore))
-    : [];
-  const success = Boolean(measureCost(state, () => state.detector?.checkTimeoutElements(elements, timestamp)));
-  stop();
+  let timestamp: number;
+  let success: boolean;
+  try {
+    timestamp = state.now();
+    const body = runtime.document?.body;
+    const elements = body
+      ? measureCost(state, () => getLeafElements(body, runtime, state.useIgnore))
+      : [];
+    success = Boolean(measureCost(state, () => state.detector?.checkTimeoutElements(elements, timestamp)));
+    stop();
+  } catch {
+    finishByError(manager, state, stop);
+    return;
+  }
   if (success && state.detector) {
     state.pageLoadedTime = state.detector.completionTime(timestamp);
     if (state.fspClsEnable) {
@@ -304,6 +319,17 @@ function finishByInteract(manager: Fsp2Manager, state: Fsp2WatchState, stop: () 
   void manager.report({
     status: "interact",
     timestamp: state.fspMutationTimestamp,
+    detector: state.detector?.snapshot(),
+    mutationCount: state.mutationCount,
+    costMs: state.costMs
+  });
+}
+
+function finishByError(manager: Fsp2Manager, state: Fsp2WatchState, stop: () => void): void {
+  stop();
+  void manager.report({
+    status: "error",
+    timestamp: state.now(),
     detector: state.detector?.snapshot(),
     mutationCount: state.mutationCount,
     costMs: state.costMs

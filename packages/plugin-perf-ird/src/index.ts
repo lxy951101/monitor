@@ -1,7 +1,7 @@
 import type { MonitorContext, Plugin } from "@monitor/core";
 import { PerfCache, sendWithPerfCache } from "@monitor/plugin-perf-cache";
 import { createPerfCustomPayload, type PerfLog } from "@monitor/protocol";
-import type { TransportRequest, TransportResponse } from "@monitor/transport";
+import type { BridgeCallbacks, BridgeLike, TransportRequest, TransportResponse } from "@monitor/transport";
 
 export const packageName = "@monitor/plugin-perf-ird";
 
@@ -10,11 +10,14 @@ type SendFn = (request: TransportRequest) => Promise<TransportResponse | void>;
 export interface IrdManagerOptions {
   send: SendFn;
   endpoint: string;
+  project?: string;
+  pagePath?: string;
   sample?: number;
   timeout?: number;
   tags?: Record<string, string>;
   cache?: PerfCache;
   random?: () => number;
+  containerBridge?: BridgeLike;
 }
 
 export class IrdManager {
@@ -39,7 +42,16 @@ export class IrdManager {
     await this.report({ delay, touchEnd: time - delay, nextFrame: time });
   }
 
+  async recordTimeout(): Promise<void> {
+    this.touchEndTime = undefined;
+    await this.report({ delay: this.options.timeout ?? 3000, timeout: true });
+  }
+
   async report(metrics: PerfLog): Promise<void> {
+    if (this.options.containerBridge) {
+      await reportWithContainerBridge(this.options.containerBridge, this.createBridgeEvent(metrics));
+      return;
+    }
     await sendWithPerfCache(this.createRequest(metrics), this.options.send, this.options.cache);
   }
 
@@ -58,6 +70,21 @@ export class IrdManager {
       }
     };
   }
+
+  private createBridgeEvent(metrics: PerfLog): Record<string, unknown> {
+    const delay = Number(metrics.delay ?? 0);
+    return {
+      pagePath: this.options.pagePath ?? "",
+      techStack: "knb",
+      value: delay,
+      tags: {
+        ...(this.options.tags ?? {}),
+        $sr: Math.min(this.options.sample ?? 1, 1),
+        gatherSource: "js",
+        appId: this.options.project ?? ""
+      }
+    };
+  }
 }
 
 export interface IrdPluginOptions {
@@ -65,12 +92,19 @@ export interface IrdPluginOptions {
   cache?: PerfCache;
   random?: () => number;
   runtime?: IrdRuntime;
+  containerBridge?: BridgeLike;
+  metadata?: {
+    pagePath?: string;
+  };
 }
 
 export interface IrdRuntime {
   addEventListener: (type: "touchend", listener: () => void) => void;
   removeEventListener: (type: "touchend", listener: () => void) => void;
   requestAnimationFrame: (callback: (time: number) => void) => number;
+  cancelAnimationFrame?: (id: number) => void;
+  setTimeout: (callback: () => void, delay: number) => ReturnType<typeof setTimeout>;
+  clearTimeout: (timer: ReturnType<typeof setTimeout>) => void;
   now: () => number;
 }
 
@@ -88,14 +122,17 @@ export function createIrdPlugin(options: IrdPluginOptions = {}): Plugin {
       manager = new IrdManager({
         send: context.transport.send.bind(context.transport),
         endpoint: perf.ird.endpoint,
+        project: context.cfgManager.getConfig("project"),
+        pagePath: options.metadata?.pagePath,
         sample: perf.ird.sample,
         timeout: perf.ird.timeout,
         tags: perf.ird.customTags,
         cache: options.cache,
-        random: options.random
+        random: options.random,
+        containerBridge: options.containerBridge
       });
       options.onReady?.(manager);
-      stopWatch = watchInteractionRuntime(manager, options.runtime);
+      stopWatch = watchInteractionRuntime(manager, options.runtime, perf.ird.timeout);
     },
     stop() {
       stopWatch?.();
@@ -113,14 +150,31 @@ function isSampled(sample = 1, random: () => number = Math.random): boolean {
   return sample >= 1 || random() < sample;
 }
 
-function watchInteractionRuntime(manager: IrdManager, runtime = getRuntime()): (() => void) | undefined {
+function watchInteractionRuntime(manager: IrdManager, runtime = getRuntime(), timeoutMs = 3000): (() => void) | undefined {
   if (!runtime) {
     return undefined;
   }
 
   const onTouchEnd = () => {
     manager.recordTouchEnd(runtime.now());
-    runtime.requestAnimationFrame((time) => {
+    let rafId: number | undefined;
+    let finished = false;
+    const timeout = runtime.setTimeout(() => {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      if (rafId !== undefined) {
+        runtime.cancelAnimationFrame?.(rafId);
+      }
+      void manager.recordTimeout();
+    }, timeoutMs);
+    rafId = runtime.requestAnimationFrame((time) => {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      runtime.clearTimeout(timeout);
       void manager.recordNextFrame(time);
     });
   };
@@ -137,6 +191,22 @@ function getRuntime(): IrdRuntime | undefined {
     addEventListener: window.addEventListener.bind(window),
     removeEventListener: window.removeEventListener.bind(window),
     requestAnimationFrame: window.requestAnimationFrame.bind(window),
+    cancelAnimationFrame: window.cancelAnimationFrame.bind(window),
+    setTimeout,
+    clearTimeout,
     now: performance.now.bind(performance)
   };
+}
+
+function reportWithContainerBridge(bridge: BridgeLike, event: Record<string, unknown>): Promise<void> {
+  const method = bridge["ird.record"];
+  if (typeof method !== "function") {
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    (method as (event: Record<string, unknown>, callbacks: BridgeCallbacks) => void)(event, {
+      success: () => resolve(),
+      fail: (error) => reject(error instanceof Error ? error : new Error("ird bridge failed"))
+    });
+  });
 }

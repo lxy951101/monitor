@@ -29,6 +29,10 @@ export interface Fsp2BridgeMetrics {
   renderRate: number;
   mutationCount: number;
   costMs?: number;
+  calibrateEndType?: string;
+  clsCycleLength?: number;
+  clsCycleNum?: number;
+  clsCycleThreshold?: number;
   pageLoadedTime?: number;
   pageStable?: boolean;
   loadedStableGap?: number;
@@ -108,6 +112,18 @@ export function createFsp2BridgeEvent(input: CreateFsp2BridgeEventInput): Fsp2Br
   }
   if (typeof input.metrics.pageLoadedTime === "number") {
     event.detect_cls = true;
+    if (input.metrics.calibrateEndType) {
+      event.calibrateEndType = input.metrics.calibrateEndType;
+    }
+    if (typeof input.metrics.clsCycleLength === "number") {
+      event.ffp_cls_cycle_length = input.metrics.clsCycleLength;
+    }
+    if (typeof input.metrics.clsCycleNum === "number") {
+      event.ffp_cls_cycle_num = input.metrics.clsCycleNum;
+    }
+    if (typeof input.metrics.clsCycleThreshold === "number") {
+      event.ffp_cls_cycle_threshold = input.metrics.clsCycleThreshold;
+    }
     event.ffp_page_loaded = input.metrics.reachBottom;
     event.ffp_loaded_time = input.metrics.pageLoadedTime;
     event.ffp_page_stable = Boolean(input.metrics.pageStable);

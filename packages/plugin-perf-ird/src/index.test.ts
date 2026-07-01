@@ -60,6 +60,8 @@ describe("交互响应耗时", () => {
           callback(150);
           return 1;
         }),
+        setTimeout: vi.fn(() => 2 as unknown as ReturnType<typeof setTimeout>),
+        clearTimeout: vi.fn(),
         now: () => 100
       }
     });
@@ -67,6 +69,72 @@ describe("交互响应耗时", () => {
     plugin.start(createContext(send));
     listener?.();
     await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+  });
+
+  it("requestAnimationFrame 未响应时按 timeout 上报", async () => {
+    let listener: (() => void) | undefined;
+    let timeoutCallback: (() => void) | undefined;
+    const send = vi.fn().mockResolvedValue(undefined);
+    const plugin = createIrdPlugin({
+      runtime: {
+        addEventListener: vi.fn((_, handler) => {
+          listener = handler;
+        }),
+        removeEventListener: vi.fn(),
+        requestAnimationFrame: vi.fn(() => 1),
+        cancelAnimationFrame: vi.fn(),
+        setTimeout: vi.fn((callback) => {
+          timeoutCallback = callback;
+          return 2 as unknown as ReturnType<typeof setTimeout>;
+        }),
+        clearTimeout: vi.fn(),
+        now: () => 100
+      }
+    });
+
+    plugin.start(createContext(send));
+    listener?.();
+    timeoutCallback?.();
+
+    await vi.waitFor(() => {
+      expect(JSON.parse(send.mock.calls[0][0].body).logs[0]).toEqual({
+        delay: 3000,
+        timeout: true
+      });
+    });
+  });
+
+  it("容器桥可用时使用 ird.record 上报", async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const record = vi.fn((_event: unknown, callbacks: { success: () => void }) => {
+      callbacks.success();
+    });
+    const manager = new IrdManager({
+      send,
+      endpoint: "/perf/ird",
+      containerBridge: { "ird.record": record },
+      project: "demo",
+      pagePath: "/home",
+      sample: 1
+    });
+
+    manager.recordTouchEnd(100);
+    await manager.recordNextFrame(148);
+
+    expect(record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pagePath: "/home",
+        techStack: "knb",
+        value: 48,
+        tags: expect.objectContaining({
+          appId: "demo",
+          gatherSource: "js",
+          $sr: 1
+        })
+      }),
+      expect.objectContaining({ success: expect.any(Function), fail: expect.any(Function) })
+    );
+    expect(send).not.toHaveBeenCalled();
   });
 });
 
