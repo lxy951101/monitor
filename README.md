@@ -73,7 +73,6 @@ Monitor.start({
 - 秒开：`@monitor/plugin-perf-fsp`，上报 `fsp_web`。
 - 响应率/交互响应耗时：`@monitor/plugin-perf-ird`，上报 `ird_web`。
 - 滚动帧率和掉帧：`@monitor/plugin-perf-shr`，上报 `shr_web`。
-- 老首屏和页面性能：`@monitor/plugin-page`。
 - API、资源、PV、错误、自定义指标分别由对应插件采集。
 
 ## TypeScript 配置
