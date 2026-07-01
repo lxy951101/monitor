@@ -14,6 +14,7 @@ describe("滚动帧率", () => {
     expect(metrics.frames).toBe(5);
     expect(metrics.fps).toBe(50);
     expect(metrics.frameDropRate).toBeCloseTo(335);
+    expect(metrics.costMs).toBe(0);
   });
 
   it("上报 shr_web 指标", async () => {
@@ -34,7 +35,8 @@ describe("滚动帧率", () => {
         duration: 100,
         frames: 3,
         fps: 30,
-        frameDropRate: 168
+        frameDropRate: 168,
+        costMs: 0
       }]
     });
   });

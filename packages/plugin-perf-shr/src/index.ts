@@ -6,7 +6,17 @@ import type { BridgeCallbacks, BridgeLike, TransportRequest, TransportResponse }
 export const packageName = "@monitor/plugin-perf-shr";
 
 const FRAME_BUDGET = 1000 / 60;
+const TAG = "[shr]";
 type SendFn = (request: TransportRequest) => Promise<TransportResponse | void>;
+
+const logger = {
+  log(...args: unknown[]): void {
+    console.log(TAG, ...args);
+  },
+  error(...args: unknown[]): void {
+    console.error(TAG, ...args);
+  }
+};
 
 export interface ScrollMetricsInput {
   startTime: number;
@@ -19,6 +29,7 @@ export interface ScrollMetrics extends PerfLog {
   frames: number;
   fps: number;
   frameDropRate: number;
+  costMs: number;
 }
 
 export interface ShrManagerOptions {
@@ -42,12 +53,12 @@ export class ShrManager {
     this.options = options;
   }
 
-  async report(input: ScrollMetricsInput): Promise<void> {
+  async report(input: ScrollMetricsInput, costMs = 0): Promise<void> {
     if (!isSampled(this.options.sample, this.options.random)) {
       return;
     }
 
-    const metrics = calculateScrollMetrics(input);
+    const metrics = calculateScrollMetrics(input, costMs);
     if (this.options.containerBridge) {
       await this.reportContainerEnd(input);
       return;
@@ -166,7 +177,7 @@ export function createShrPlugin(options: ShrPluginOptions = {}): Plugin {
   };
 }
 
-export function calculateScrollMetrics(input: ScrollMetricsInput): ScrollMetrics {
+export function calculateScrollMetrics(input: ScrollMetricsInput, costMs = 0): ScrollMetrics {
   const duration = Math.max(0, input.endTime - input.startTime);
   const frames = input.frameTimes.length;
   const frameTimeDiff = calculateFrameTimeDiff(input.frameTimes);
@@ -174,7 +185,8 @@ export function calculateScrollMetrics(input: ScrollMetricsInput): ScrollMetrics
     duration,
     frames,
     fps: duration > 0 ? Math.round((frames * 1000) / duration) : 0,
-    frameDropRate: duration > 0 ? Math.round((frameTimeDiff / duration) * 1000) : 0
+    frameDropRate: duration > 0 ? Math.round((frameTimeDiff / duration) * 1000) : 0,
+    costMs
   };
 }
 
@@ -201,16 +213,16 @@ function compactRecord(input: Record<string, unknown>): Record<string, string | 
   return output;
 }
 
-function watchScrollRuntime(manager: ShrManager, runtime = getRuntime(), idleDelay = 120): (() => void) | undefined {
+function watchScrollRuntime(manager: ShrManager, runtime = getRuntime(), idleDelay = 150): (() => void) | undefined {
   if (!runtime) {
     return undefined;
   }
 
   const state = createScrollState(manager, runtime, idleDelay);
-  runtime.addEventListener("scroll", state.onScroll);
+  runtime.addEventListener("scroll", state.onScroll, { capture: true });
   return () => {
     state.stop();
-    runtime.removeEventListener("scroll", state.onScroll);
+    runtime.removeEventListener("scroll", state.onScroll, { capture: true });
   };
 }
 
@@ -222,6 +234,7 @@ function createScrollState(manager: ShrManager, runtime: ShrRuntime, idleDelay: 
   let animationFrameId: number | undefined;
   let isScrolling = false;
   let scrollTarget: unknown;
+  let timeCost = 0;
   const stop = () => {
     if (animationFrameId !== undefined) {
       runtime.cancelAnimationFrame?.(animationFrameId);
@@ -229,49 +242,72 @@ function createScrollState(manager: ShrManager, runtime: ShrRuntime, idleDelay: 
     }
   };
   const onScroll = (event?: { target?: unknown }) => {
-    const target = event?.target;
-    if (isScrolling && target !== scrollTarget) {
-      return;
-    }
-    const now = runtime.now();
-    const currentValue = getScrollValue(runtime, target);
-    if (currentValue !== lastScrollValue) {
-      lastScrollValue = currentValue;
-      lastScrollChangeTime = now;
-    }
-    if (!isScrolling) {
-      isScrolling = true;
-      scrollTarget = target;
-      startTime = now;
-      void manager.reportScrollState(startTime, 0);
-      startTracking();
+    const costStart = runtime.now();
+    try {
+      const target = event?.target;
+      if (isScrolling && target !== scrollTarget) {
+        return;
+      }
+      const now = runtime.now();
+      const currentValue = getScrollValue(runtime, target);
+      if (currentValue !== lastScrollValue) {
+        lastScrollValue = currentValue;
+        lastScrollChangeTime = now;
+      }
+      if (!isScrolling) {
+        isScrolling = true;
+        scrollTarget = target;
+        startTime = now;
+        void manager.reportScrollState(startTime, 0);
+        logger.log(`滑动开始上报 ${JSON.stringify({ scrollStartTime: startTime, scrollEndTime: 0 })}`);
+        startTracking();
+      }
+    } catch (error) {
+      logger.error("scroll error", error);
+    } finally {
+      timeCost += runtime.now() - costStart;
     }
   };
   const startTracking = () => {
     if (animationFrameId !== undefined) {
       return;
     }
+    logger.log("开始跟踪滚动");
     animationFrameId = runtime.requestAnimationFrame(trackFrame);
   };
   const trackFrame = (time: number) => {
-    animationFrameId = undefined;
-    frameTimes.push(time);
-    const now = runtime.now();
-    const currentValue = getScrollValue(runtime, scrollTarget);
-    if (currentValue !== lastScrollValue) {
-      lastScrollValue = currentValue;
-      lastScrollChangeTime = now;
-    }
-    if (isScrolling && now - lastScrollChangeTime > idleDelay) {
-      const endTime = lastScrollChangeTime;
-      void manager.report({ startTime, endTime, frameTimes: [...frameTimes] });
-      isScrolling = false;
-      scrollTarget = undefined;
-      frameTimes.length = 0;
-      return;
-    }
-    if (isScrolling) {
-      animationFrameId = runtime.requestAnimationFrame(trackFrame);
+    const costStart = runtime.now();
+    try {
+      animationFrameId = undefined;
+      frameTimes.push(time);
+      const now = runtime.now();
+      const currentValue = getScrollValue(runtime, scrollTarget);
+      if (currentValue !== lastScrollValue) {
+        lastScrollValue = currentValue;
+        lastScrollChangeTime = now;
+      }
+      if (isScrolling && now - lastScrollChangeTime > idleDelay) {
+        const endTime = lastScrollChangeTime;
+        const scrollDuration = endTime - startTime;
+        logger.log(
+          `滑动结束上报 ${JSON.stringify({ scrollStartTime: startTime, scrollEndTime: endTime })}, ` +
+          `本次滑动时长: ${scrollDuration}ms, ` +
+          `本次滑动帧数: ${frameTimes.length}`
+        );
+        void manager.report({ startTime, endTime, frameTimes: [...frameTimes] }, Math.round(timeCost));
+        isScrolling = false;
+        scrollTarget = undefined;
+        frameTimes.length = 0;
+        timeCost = 0;
+        return;
+      }
+      if (isScrolling) {
+        animationFrameId = runtime.requestAnimationFrame(trackFrame);
+      }
+    } catch (error) {
+      logger.error("trackFrame error:", error);
+    } finally {
+      timeCost += runtime.now() - costStart;
     }
   };
   return { onScroll, stop };
