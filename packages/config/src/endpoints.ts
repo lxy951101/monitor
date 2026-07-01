@@ -9,18 +9,18 @@ export const API_PATHS = {
   log: "/api/log",
   logTs: "/api/logts",
   speedTs: "/api/speedts",
-  pbBatchTs: "/pbbatchts",
-  batchTs: "/batchts",
-  metricJTs: "/rapi/metricjts",
+  pbBatchTs: "/api/pbbatchts",
+  batchTs: "/api/batchts",
+  metricJTs: "/api/metricjts",
   pvTs: "/api/pvts",
-  fstSpeed: "/raptorapi/fstSpeed",
-  fstLog: "/raptorapi/fstLog"
+  fstSpeed: "/api/fstSpeed",
+  fstLog: "/api/fstLog"
 } as const;
 
 export const PERF_DEFAULT_ENDPOINTS = {
-  fsp2: "/perf/api/fsp2",
-  ird: "/perf/api/ird",
-  shr: "/perf/api/shr"
+  fsp2: "/api/fsp2",
+  ird: "/api/ird",
+  shr: "/api/shr"
 } as const;
 
 export function getReportBaseUrl(devMode: boolean): string {
