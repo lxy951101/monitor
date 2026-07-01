@@ -1,8 +1,8 @@
 {
   "name": "@monitor/build-config",
   "version": "0.0.0",
-  "type": "module",
   "private": true,
+  "type": "module",
   "main": "src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit"

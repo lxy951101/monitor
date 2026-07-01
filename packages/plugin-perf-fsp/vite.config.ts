@@ -1,6 +1,6 @@
-import { createLibConfig } from '@monitor/build-config';
+import { createLibConfig } from "@monitor/build-config";
 
 export default createLibConfig({
-  name: 'MonitorPluginPerfFsp',
-  external: ['@monitor/core', '@monitor/protocol', '@monitor/transport'],
+  name: "MonitorPluginPerfFsp",
+  external: ["@monitor/core", "@monitor/protocol", "@monitor/transport"],
 });

@@ -1,6 +1,6 @@
-import { createLibConfig } from '@monitor/build-config';
+import { createLibConfig } from "@monitor/build-config";
 
 export default createLibConfig({
-  name: 'MonitorPluginResource',
-  external: ['@monitor/core', '@monitor/protocol', '@monitor/transport'],
+  name: "MonitorPluginResource",
+  external: ["@monitor/core", "@monitor/protocol", "@monitor/transport"],
 });
