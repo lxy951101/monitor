@@ -1,4 +1,4 @@
-import { MonitorCore, type CoreConfig, type CoreConfigPatch, type Plugin } from "@monitor/core";
+import { checkIsSpider, MonitorCore, type CoreConfig, type CoreConfigPatch, type Plugin } from "@monitor/core";
 import type { ErrorManager } from "@monitor/plugin-error";
 import type { MetricManager } from "@monitor/plugin-metric";
 import type { PvManager, PvReportOptions, PvResetOptions } from "@monitor/plugin-pv";
@@ -37,8 +37,40 @@ export class MonitorClient {
   }
 
   start(config?: CoreConfigPatch): this {
+    // 爬虫检测：跳过对整个 SDK 的初始化
+    if (checkIsSpider()) {
+      return this;
+    }
+
     this.core.start(config);
     return this;
+  }
+
+  debug(): this {
+    this.core.setConfig("devMode", true);
+    return this;
+  }
+
+  /** 用 try-catch 包裹函数，异常时自动上报 error，然后继续抛出 */
+  wrap<T extends (...args: never[]) => unknown>(fn: T): T {
+    // 防止重复包裹
+    if ((fn as unknown as { __monitor_wrapped__?: boolean }).__monitor_wrapped__) {
+      return fn;
+    }
+
+    const client = this;
+    const wrapped = function (this: unknown, ...args: Parameters<T>): ReturnType<T> {
+      try {
+        return fn.apply(this, args) as ReturnType<T>;
+      } catch (error) {
+        client.reportError(error);
+        throw error;
+      }
+    } as T;
+
+    Object.defineProperty(wrapped, "__monitor_wrapped__", { value: true });
+
+    return wrapped;
   }
 
   stop(): this {

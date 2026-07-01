@@ -1,9 +1,14 @@
 export interface ReportQueueOptions<T> {
   maxLength: number;
+  /** 延迟发送的毫秒数。0 表示立即发送。若 > 0，实际值不低于 minDelay（默认 1000ms）。 */
   delay: number;
   send: (reports: T[]) => Promise<void>;
   onFail?: (error: unknown, reports: T[]) => void;
+  /** 队列延迟下限（毫秒），默认 1000。设为 0 可关闭下限。 */
+  minDelay?: number;
 }
+
+const DEFAULT_MIN_DELAY = 1000;
 
 export class ReportQueue<T = unknown> {
   private readonly reports: T[] = [];
@@ -16,8 +21,10 @@ export class ReportQueue<T = unknown> {
   private needsFlush = false;
 
   constructor(options: ReportQueueOptions<T>) {
+    const minDelay = options.minDelay ?? DEFAULT_MIN_DELAY;
+
     this.maxLength = Math.max(1, options.maxLength);
-    this.delay = Math.max(0, options.delay);
+    this.delay = options.delay > 0 ? Math.max(minDelay, options.delay) : 0;
     this.send = options.send;
     this.onFail = options.onFail;
   }

@@ -10,6 +10,9 @@ export interface MonitorNamespace {
   init: (config?: CoreConfigPatch) => MonitorClient;
   start: (config?: CoreConfigPatch) => MonitorClient;
   stop: () => MonitorClient;
+  debug: () => MonitorClient;
+  /** 用 try-catch 包裹函数，异常时自动上报 error 然后继续抛出。防止重复包裹。 */
+  wrap: <T extends (...args: never[]) => unknown>(fn: T) => T;
   client: MonitorClient;
 }
 
@@ -28,6 +31,12 @@ export function createMonitorNamespace(client = new MonitorClient()): MonitorNam
     },
     stop() {
       return client.stop();
+    },
+    debug() {
+      return client.debug();
+    },
+    wrap<T extends (...args: never[]) => unknown>(fn: T): T {
+      return client.wrap(fn);
     }
   };
 }

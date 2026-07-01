@@ -71,7 +71,7 @@ describe("ReportQueue", () => {
     const error = new Error("timer failed");
     const onFail = vi.fn();
     const send = vi.fn().mockRejectedValueOnce(error).mockResolvedValue(undefined);
-    const queue = new ReportQueue({ maxLength: 10, delay: 100, send, onFail });
+    const queue = new ReportQueue({ maxLength: 10, delay: 100, minDelay: 0, send, onFail });
     const unhandled = vi.fn();
 
     process.once("unhandledRejection", unhandled);

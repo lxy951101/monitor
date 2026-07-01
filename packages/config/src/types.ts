@@ -132,6 +132,13 @@ export interface MonitorConfig {
   hornUrl: string;
   envFilterName: string;
   filters: Record<string, FilterFn>;
+  disabledFilters: string[];
+  /** web 版本号，会附加到 API 请求的 query 中 */
+  webVersion: string;
+  /** 自定义维度回调，每次上报时调用，返回的 kv 合并到上报数据 */
+  setCustomTags: (() => Record<string, string>) | null;
+  /** 全局禁用 localStorage 缓存（批量队列、Horn 配置等） */
+  disableCache: boolean;
   autoCatch: AutoCatchConfig;
   page: PageConfig;
   SPA: SpaConfig;

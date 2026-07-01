@@ -14,6 +14,10 @@ export function createDefaultConfig(): MonitorConfig {
     hornUrl: HORN_URL,
     envFilterName: "default",
     filters: {},
+    disabledFilters: [],
+    webVersion: "",
+    setCustomTags: null,
+    disableCache: true,
     autoCatch: {
       js: true,
       resource: true,
@@ -78,7 +82,10 @@ export function createDefaultConfig(): MonitorConfig {
       enable: true,
       sample: 1,
       maxQueueLength: 20,
-      ignoreList: [],
+      ignoreList: [
+        "Script error.",
+        "Illegal invocation"
+      ],
       maxRepeat: 5,
       noScriptError: true,
       formatUnhandledRejection: false,

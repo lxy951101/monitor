@@ -1,3 +1,5 @@
+export const SDK_VERSION = "0.0.0";
+
 export const REPORT_BASE_URLS = {
   production: "https://catfront.dianping.com",
   development: "https://catfront.51ping.com"
