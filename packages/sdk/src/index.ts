@@ -46,3 +46,6 @@ export const Monitor = createMonitorNamespace();
 export { installGlobal, type InstallGlobalOptions, type MonitorGlobalTarget } from "./global";
 export { MonitorClient, type MonitorClientOptions } from "./monitor-client";
 export { registerDefaultPlugins, type DefaultPluginRefs } from "./register-defaults";
+
+/** @deprecated 直接从 @monitor/plugin-error 导入 */
+export { createErrorPlugin, type ErrorPluginOptions } from "@monitor/plugin-error";
