@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { parseRequestBody } from "./parser.js";
-import { RecordStore } from "./store.js";
+import { parseRequestBody } from "./parser.ts";
+import { RecordStore } from "./store.ts";
 
 const DEFAULT_PORT = 8787;
 const REPORT_PATHS = new Set([
@@ -86,7 +86,7 @@ function sendJson(response: ServerResponse, status: number, body?: unknown): voi
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const port = Number(process.env.PORT || DEFAULT_PORT);
-  createMockServer().listen(port, () => {
-    console.log(`mock-server listening on http://localhost:${port}`);
+  createMockServer().listen(port, "127.0.0.1", () => {
+    console.log(`mock-server listening on http://127.0.0.1:${port}`);
   });
 }

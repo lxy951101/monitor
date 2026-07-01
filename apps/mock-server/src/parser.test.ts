@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseLogtsBody, parseRequestBody } from "./parser.js";
-import { RecordStore, type MockRecord } from "./store.js";
+import { parseLogtsBody, parseRequestBody } from "./parser.ts";
+import { RecordStore, type MockRecord } from "./store.ts";
 
 describe("mock-server 解析器", () => {
   it("解析 /api/logts 的 c= 请求体", () => {
