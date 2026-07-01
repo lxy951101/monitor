@@ -1,12 +1,20 @@
 import type { MonitorContext, Plugin } from "@monitor/core";
 import { PerfCache, sendWithPerfCache } from "@monitor/plugin-perf-cache";
-import { createPerfCustomPayload, type PerfLog } from "@monitor/protocol";
-import type { TransportRequest, TransportResponse } from "@monitor/transport";
+import { createFsp2BridgeEvent, createPerfCustomPayload, type PerfLog } from "@monitor/protocol";
+import {
+  createContainerBridgeReporter,
+  type BridgeLike,
+  type ContainerBridgeReporter,
+  type TransportRequest,
+  type TransportResponse
+} from "@monitor/transport";
+import type { Fsp2DetectorSnapshot } from "./fsp2-detector";
+import { watchFsp2Runtime, type Fsp2Runtime } from "./fsp2-runtime";
 
 export const packageName = "@monitor/plugin-perf-fsp2";
 
 type SendFn = (request: TransportRequest) => Promise<TransportResponse | void>;
-export type Fsp2Status = "success" | "timeout" | "hidden";
+export type Fsp2Status = "success" | "timeout" | "hidden" | "interact";
 export type BeforeSendFsp2 = (metrics: Fsp2Metrics) => Fsp2Metrics | false | void;
 
 export interface Fsp2Input {
@@ -15,6 +23,16 @@ export interface Fsp2Input {
   now: number;
   timeout: number;
   hidden?: boolean;
+  status?: Fsp2Status;
+  detector?: Fsp2DetectorSnapshot;
+  mutationCount?: number;
+  cls?: Fsp2ClsMetrics;
+}
+
+export interface Fsp2ClsMetrics {
+  pageLoadedTime: number;
+  pageStable: boolean;
+  loadedStableGap: number;
 }
 
 export interface Fsp2Metrics extends PerfLog {
@@ -22,9 +40,18 @@ export interface Fsp2Metrics extends PerfLog {
   duration: number;
 }
 
+export interface Fsp2ReportInput {
+  status?: Fsp2Status;
+  timestamp?: number;
+  detector?: Fsp2DetectorSnapshot;
+  mutationCount?: number;
+  cls?: Fsp2ClsMetrics;
+}
+
 export interface Fsp2ManagerOptions {
   send: SendFn;
   endpoint: string;
+  project?: string;
   sample?: number;
   timeout?: number;
   tags?: Record<string, string>;
@@ -32,6 +59,7 @@ export interface Fsp2ManagerOptions {
   random?: () => number;
   now?: () => number;
   beforeSend?: BeforeSendFsp2;
+  containerBridge?: ContainerBridgeReporter;
 }
 
 export class Fsp2Manager {
@@ -49,22 +77,26 @@ export class Fsp2Manager {
     this.hidden = true;
   }
 
-  async report(firstScreenTime?: number): Promise<void> {
+  async report(input?: number | Fsp2ReportInput, detector?: Fsp2DetectorSnapshot, mutationCount = 0): Promise<void> {
     if (this.reported) {
       return;
     }
-
     if (!isSampled(this.options.sample, this.options.random)) {
       this.reported = true;
       return;
     }
 
+    const reportInput = normalizeReportInput(input, detector, mutationCount);
     const metrics = calculateFsp2({
       startTime: this.startTime,
-      firstScreenTime,
+      firstScreenTime: reportInput.timestamp,
       now: this.options.now?.() ?? Date.now(),
       timeout: this.options.timeout ?? 10000,
-      hidden: this.hidden
+      hidden: this.hidden,
+      status: reportInput.status,
+      detector: reportInput.detector,
+      mutationCount: reportInput.mutationCount,
+      cls: reportInput.cls
     });
     const next = this.options.beforeSend?.(metrics);
     if (next === false) {
@@ -73,7 +105,12 @@ export class Fsp2Manager {
     }
 
     this.reported = true;
-    await sendWithPerfCache(this.createRequest(next ?? metrics), this.options.send, this.options.cache);
+    const finalMetrics = next ?? metrics;
+    if (this.options.containerBridge) {
+      await this.options.containerBridge.reportFsp2(this.createBridgeEvent(finalMetrics, reportInput));
+      return;
+    }
+    await sendWithPerfCache(this.createRequest(finalMetrics), this.options.send, this.options.cache);
   }
 
   private createRequest(metrics: Fsp2Metrics): TransportRequest {
@@ -91,6 +128,25 @@ export class Fsp2Manager {
       }
     };
   }
+
+  private createBridgeEvent(metrics: Fsp2Metrics, input: Fsp2ReportInput): Record<string, unknown> {
+    return createFsp2BridgeEvent({
+      type: metrics.status,
+      createMs: input.timestamp ?? this.options.now?.() ?? Date.now(),
+      appId: this.options.project ?? "",
+      sampleRate: this.options.sample,
+      tags: this.options.tags,
+      metrics: {
+        reachBottom: metrics.reachBottom === "reached",
+        renderRate: Number(metrics.renderRate ?? 0),
+        mutationCount: Number(metrics.mutationCount ?? 0),
+        costMs: Number(metrics.costMs ?? 0),
+        pageLoadedTime: input.cls?.pageLoadedTime,
+        pageStable: input.cls?.pageStable,
+        loadedStableGap: input.cls?.loadedStableGap
+      }
+    });
+  }
 }
 
 export interface Fsp2PluginOptions {
@@ -100,14 +156,7 @@ export interface Fsp2PluginOptions {
   now?: () => number;
   beforeSend?: BeforeSendFsp2;
   runtime?: Fsp2Runtime;
-}
-
-export interface Fsp2Runtime {
-  document?: { visibilityState?: string };
-  addEventListener: (type: "visibilitychange", listener: () => void) => void;
-  removeEventListener: (type: "visibilitychange", listener: () => void) => void;
-  setTimeout: (callback: () => void, delay: number) => ReturnType<typeof setTimeout>;
-  clearTimeout: (timer: ReturnType<typeof setTimeout>) => void;
+  containerBridge?: BridgeLike;
 }
 
 export function createFsp2Plugin(options: Fsp2PluginOptions = {}): Plugin {
@@ -121,19 +170,28 @@ export function createFsp2Plugin(options: Fsp2PluginOptions = {}): Plugin {
         return;
       }
 
+      const bridgeConfig = context.cfgManager.getConfig("bridge");
       manager = new Fsp2Manager({
         send: context.transport.send.bind(context.transport),
         endpoint: perf.fsp2.endpoint,
+        project: context.cfgManager.getConfig("project"),
         sample: perf.fsp2.sample,
         timeout: perf.fsp2.timeout,
         tags: perf.fsp2.customTags,
         cache: options.cache,
         random: options.random,
         now: options.now,
-        beforeSend: options.beforeSend
+        beforeSend: options.beforeSend,
+        containerBridge: createFsp2ContainerBridge(options, bridgeConfig.useMSI)
       });
       options.onReady?.(manager);
-      stopWatch = watchFsp2Runtime(manager, perf.fsp2.timeout, options.runtime);
+      stopWatch = watchFsp2Runtime(manager, {
+        timeout: perf.fsp2.timeout,
+        useIgnore: Boolean(perf.fsp2.useIgnore),
+        fspClsEnable: perf.fsp2.fspClsEnable !== false,
+        runtime: options.runtime,
+        now: options.now
+      });
     },
     stop() {
       stopWatch?.();
@@ -144,52 +202,58 @@ export function createFsp2Plugin(options: Fsp2PluginOptions = {}): Plugin {
 }
 
 export function calculateFsp2(input: Fsp2Input): Fsp2Metrics {
+  const detectorMetrics = createDetectorMetrics(input.detector, input.mutationCount, input.cls);
   if (input.hidden) {
-    return { status: "hidden", duration: Math.max(0, input.now - input.startTime) };
+    return {
+      status: "hidden",
+      duration: Math.max(0, input.now - input.startTime),
+      ...detectorMetrics
+    };
   }
 
   const endTime = input.firstScreenTime ?? input.now;
   const duration = Math.max(0, endTime - input.startTime);
   return {
-    status: duration > input.timeout ? "timeout" : "success",
-    duration
+    status: input.status ?? (duration > input.timeout ? "timeout" : "success"),
+    duration,
+    ...detectorMetrics
   };
+}
+
+function normalizeReportInput(input?: number | Fsp2ReportInput, detector?: Fsp2DetectorSnapshot, mutationCount = 0): Fsp2ReportInput {
+  if (typeof input === "number") {
+    return { timestamp: input, detector, mutationCount };
+  }
+  return input ?? {};
+}
+
+function createDetectorMetrics(detector?: Fsp2DetectorSnapshot, mutationCount = 0, cls?: Fsp2ClsMetrics): PerfLog {
+  const metrics: PerfLog = {};
+  if (detector) {
+    metrics.renderRate = detector.renderRate;
+    metrics.reachBottom = detector.reachBottomDone ? "reached" : "notReached";
+    metrics.mutationCount = mutationCount;
+  }
+  if (cls) {
+    metrics.detect_cls = true;
+    metrics.ffp_page_loaded = Boolean(detector?.fillRateDone && detector.reachBottomDone);
+    metrics.ffp_loaded_time = cls.pageLoadedTime;
+    metrics.ffp_page_stable = cls.pageStable;
+    metrics.ffp_loaded_stable_gap = cls.loadedStableGap;
+  }
+  return metrics;
 }
 
 function isSampled(sample = 1, random: () => number = Math.random): boolean {
   return sample >= 1 || random() < sample;
 }
 
-function watchFsp2Runtime(manager: Fsp2Manager, timeout: number, runtime = getRuntime()): (() => void) | undefined {
-  if (!runtime) {
+function createFsp2ContainerBridge(options: Fsp2PluginOptions, preferMSI: boolean): ContainerBridgeReporter | undefined {
+  if (!options.containerBridge) {
     return undefined;
   }
-
-  const onVisibilityChange = () => {
-    if (runtime.document?.visibilityState === "hidden") {
-      manager.markHidden();
-    }
-  };
-  const timer = runtime.setTimeout(() => {
-    void manager.report();
-  }, timeout);
-  runtime.addEventListener("visibilitychange", onVisibilityChange);
-  return () => {
-    runtime.clearTimeout(timer);
-    runtime.removeEventListener("visibilitychange", onVisibilityChange);
-  };
-}
-
-function getRuntime(): Fsp2Runtime | undefined {
-  if (typeof window === "undefined") {
-    return undefined;
-  }
-
-  return {
-    document,
-    addEventListener: window.addEventListener.bind(window),
-    removeEventListener: window.removeEventListener.bind(window),
-    setTimeout,
-    clearTimeout
-  };
+  return createContainerBridgeReporter({
+    bridge: options.containerBridge,
+    preferMSI
+  });
 }

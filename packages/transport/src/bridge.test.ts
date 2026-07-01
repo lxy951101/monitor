@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createBridgeTransport } from "./index";
+import { createBridgeTransport, createContainerBridgeReporter } from "./index";
 
 describe("createBridgeTransport", () => {
   it("KNB 使用注入对象且透传参数", async () => {
@@ -42,5 +42,44 @@ describe("createBridgeTransport", () => {
     await expect(transport.send({ method: "GET", url: "/api" })).rejects.toThrow(
       "Bridge method request is not available"
     );
+  });
+});
+
+describe("createContainerBridgeReporter", () => {
+  it("按平台桥名上报 FSP2 事件", async () => {
+    const ffpRecord = vi.fn((_event: unknown, callbacks: { success: (value: string) => void }) => {
+      callbacks.success("ok");
+    });
+    const reporter = createContainerBridgeReporter({
+      bridge: { "ffp.record": ffpRecord },
+      preferMSI: false
+    });
+
+    await expect(reporter.reportFsp2({ eType: "success", createMs: 100 })).resolves.toEqual({
+      ok: true,
+      status: 0,
+      body: "ok"
+    });
+    expect(ffpRecord).toHaveBeenCalledWith(
+      { eType: "success", createMs: 100 },
+      expect.objectContaining({
+        success: expect.any(Function),
+        fail: expect.any(Function)
+      })
+    );
+  });
+
+  it("MSI 环境使用 fspRecord", async () => {
+    const fspRecord = vi.fn((_event: unknown, callbacks: { success: () => void }) => {
+      callbacks.success();
+    });
+    const reporter = createContainerBridgeReporter({
+      bridge: { fspRecord },
+      preferMSI: true
+    });
+
+    await reporter.reportFsp2({ eType: "timeout", createMs: 120 });
+
+    expect(fspRecord).toHaveBeenCalledTimes(1);
   });
 });

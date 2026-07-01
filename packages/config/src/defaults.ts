@@ -75,38 +75,7 @@ export function createDefaultConfig(): MonitorConfig {
       cdnPrefixes: [...LOGAN_CDN_PREFIXES],
       autoLoad: false
     },
-    perf: {
-      enable: true,
-      fsp2: {
-        enable: true,
-        sample: 1,
-        endpoint: PERF_DEFAULT_ENDPOINTS.fsp2,
-        timeout: 10000,
-        debug: false,
-        customTags: {}
-      },
-      ird: {
-        enable: true,
-        sample: 1,
-        endpoint: PERF_DEFAULT_ENDPOINTS.ird,
-        timeout: 3000,
-        debug: false,
-        customTags: {}
-      },
-      shr: {
-        enable: true,
-        sample: 1,
-        endpoint: PERF_DEFAULT_ENDPOINTS.shr,
-        timeout: 3000,
-        debug: false,
-        customTags: {}
-      },
-      cache: {
-        enable: true,
-        key: "__perf_cache",
-        maxLength: 50
-      }
-    },
+    perf: createDefaultPerfConfig(),
     bridge: {
       enable: true,
       useKNB: true,
@@ -116,5 +85,43 @@ export function createDefaultConfig(): MonitorConfig {
       legacyOwlAlias: false,
       monitorQueue: true
     }
+  };
+}
+
+function createDefaultPerfConfig(): MonitorConfig["perf"] {
+  return {
+    enable: true,
+    fsp2: {
+      enable: true,
+      sample: 1,
+      endpoint: PERF_DEFAULT_ENDPOINTS.fsp2,
+      timeout: 10000,
+      debug: false,
+      useIgnore: false,
+      defer: true,
+      fspClsEnable: true,
+      customTags: {}
+    },
+    ird: createDefaultPerfFeature(PERF_DEFAULT_ENDPOINTS.ird),
+    shr: createDefaultPerfFeature(PERF_DEFAULT_ENDPOINTS.shr),
+    cache: {
+      enable: true,
+      key: "__perf_cache",
+      maxLength: 50
+    }
+  };
+}
+
+function createDefaultPerfFeature(endpoint: string): MonitorConfig["perf"]["ird"] {
+  return {
+    enable: true,
+    sample: 1,
+    endpoint,
+    timeout: 3000,
+    debug: false,
+    useIgnore: false,
+    defer: true,
+    fspClsEnable: false,
+    customTags: {}
   };
 }

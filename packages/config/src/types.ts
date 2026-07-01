@@ -76,6 +76,9 @@ export interface PerfFeatureConfig {
   endpoint: string;
   timeout: number;
   debug: boolean;
+  useIgnore: boolean;
+  defer: boolean;
+  fspClsEnable: boolean;
   customTags: Record<string, string>;
 }
 

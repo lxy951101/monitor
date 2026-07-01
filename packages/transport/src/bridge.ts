@@ -10,6 +10,11 @@ export type BridgeMethod = (
   callbacks: BridgeCallbacks
 ) => void;
 
+export type ContainerBridgeMethod = (
+  event: Record<string, unknown>,
+  callbacks: BridgeCallbacks
+) => void;
+
 export type BridgeLike = Record<string, unknown>;
 
 export interface BridgeRequestParams {
@@ -22,6 +27,15 @@ export interface BridgeRequestParams {
 export interface BridgeTransportOptions {
   bridge?: BridgeLike;
   method: string;
+}
+
+export interface ContainerBridgeReporterOptions {
+  bridge?: BridgeLike;
+  preferMSI?: boolean;
+}
+
+export interface ContainerBridgeReporter {
+  reportFsp2(event: Record<string, unknown>): Promise<{ ok: true; status: 0; body?: unknown }>;
 }
 
 export function createBridgeTransport(options: BridgeTransportOptions): Transport {
@@ -39,6 +53,20 @@ export function createBridgeTransport(options: BridgeTransportOptions): Transpor
   };
 }
 
+export function createContainerBridgeReporter(options: ContainerBridgeReporterOptions): ContainerBridgeReporter {
+  return {
+    reportFsp2(event) {
+      const methodName = options.preferMSI ? "fspRecord" : "ffp.record";
+      const fallbackName = options.preferMSI ? "ffp.record" : "fspRecord";
+      const method = getBridgeMethod(options.bridge, methodName) ?? getBridgeMethod(options.bridge, fallbackName);
+      if (!method) {
+        return Promise.reject(new TransportError(`Container bridge method ${methodName} is not available`));
+      }
+      return sendEventWithBridge(method, event);
+    }
+  };
+}
+
 function sendWithBridge(method: BridgeMethod, request: TransportRequest) {
   return new Promise<{ ok: true; status: 0; body?: unknown }>((resolve, reject) => {
     method(createParams(request), {
@@ -46,6 +74,20 @@ function sendWithBridge(method: BridgeMethod, request: TransportRequest) {
       fail: (error) => reject(toBridgeError(error))
     });
   });
+}
+
+function sendEventWithBridge(method: ContainerBridgeMethod, event: Record<string, unknown>) {
+  return new Promise<{ ok: true; status: 0; body?: unknown }>((resolve, reject) => {
+    method(event, {
+      success: (response) => resolve({ ok: true, status: 0, body: response }),
+      fail: (error) => reject(toBridgeError(error))
+    });
+  });
+}
+
+function getBridgeMethod(bridge: BridgeLike | undefined, methodName: string): ContainerBridgeMethod | undefined {
+  const method = bridge?.[methodName];
+  return typeof method === "function" ? method as ContainerBridgeMethod : undefined;
 }
 
 function createParams(request: TransportRequest): BridgeRequestParams {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createPerfCustomPayload, createPerfLogPayload } from "./index";
+import { createFsp2BridgeEvent, createPerfCustomPayload, createPerfLogPayload } from "./index";
 
 describe("Perf 协议", () => {
   it("生成 category/env/logs 结构", () => {
@@ -23,5 +23,45 @@ describe("Perf 协议", () => {
     });
     expect(payload.category).toBe("custom_fsp");
     expect(payload.logs[0]).toEqual({ firstScreen: 88 });
+  });
+
+  it("生成容器 FSP2 桥事件结构", () => {
+    const event = createFsp2BridgeEvent({
+      type: "success",
+      createMs: 260,
+      appId: "demo",
+      pagePath: "/home",
+      pageUrl: "https://example.com/home",
+      sampleRate: 0.5,
+      tags: { env: "test" },
+      metrics: {
+        reachBottom: true,
+        renderRate: 1,
+        mutationCount: 2,
+        costMs: 3,
+        pageLoadedTime: 250,
+        pageStable: true,
+        loadedStableGap: 10
+      }
+    });
+
+    expect(event).toEqual({
+      env: "test",
+      eType: "success",
+      createMs: 260,
+      appId: "demo",
+      pagePath: "/home",
+      pageUrl: "https://example.com/home",
+      reachBottom: "reached",
+      costMs: 3,
+      mutationCount: 2,
+      renderRate: 1,
+      $sr: 0.5,
+      detect_cls: true,
+      ffp_page_loaded: true,
+      ffp_loaded_time: 250,
+      ffp_page_stable: true,
+      ffp_loaded_stable_gap: 10
+    });
   });
 });
