@@ -28,6 +28,7 @@ describe("错误缓存", () => {
       project: "demo",
       pageUrl: "/home",
       storage,
+      delay: 5000,
       send: failedSend
     });
 
@@ -58,6 +59,7 @@ describe("错误缓存", () => {
       storage,
       disableCache: true,
       useSendBeacon: true,
+      delay: 5000,
       navigator: { sendBeacon },
       send: vi.fn()
     });
@@ -93,6 +95,7 @@ describe("错误缓存", () => {
       pageUrl: "/home",
       storage,
       useSendBeacon: true,
+      delay: 5000,
       navigator: { sendBeacon: vi.fn().mockReturnValue(false) },
       send: vi.fn().mockResolvedValue(undefined)
     });

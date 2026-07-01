@@ -83,6 +83,27 @@ export function encodeResourceProtobufBatch(_data: ResourceBatch): Uint8Array {
   throw new Error("resource protobuf encoding is not implemented yet");
 }
 
+/** 图片资源识别正则 (对齐 owl.js imgPattern) */
+export const IMG_PATTERN = /\.(png|jpe?g|gif|svg|webp|ico|bmp)(\?.*)?$/i;
+
+/** JS 资源识别正则 */
+export const JS_PATTERN = /\.js(\?.*)?$/i;
+
+/** CSS 资源识别正则 */
+export const CSS_PATTERN = /\.css(\?.*)?$/i;
+
+/**
+ * 截取图片域名路径 (对齐 owl.js getImageDomain)
+ * 例: https://cdn.example.com/a/b/c.png → https://cdn.example.com/images
+ */
+export function getImageDomain(url: string): string {
+  const arr = url.split("//");
+  if (arr.length > 1) {
+    return arr[0] + "//" + arr[1].split("/")[0] + "/images";
+  }
+  return url;
+}
+
 function formatTags(value: string | Record<string, string> | undefined): string {
   if (value === undefined) {
     return "";

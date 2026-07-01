@@ -38,11 +38,18 @@ export function createDefaultConfig(): MonitorConfig {
     },
     resource: {
       enable: true,
-      sample: 1,
+      sample: 0.1,
+      sampleApi: 0.1,
       batchSize: 20,
-      delay: 1000,
+      delay: 2000,
+      combo: true,
       resourceReg: /\.(js|css|png|jpe?g|gif|webp|svg|woff2?|ttf|eot)(\?.*)?$/i,
-      ignoreList: []
+      ignoreList: [],
+      catchAbort: true,
+      catchTimeout: false,
+      enableStatusCheck: false,
+      ignoreMTSIForbidRequest: true,
+      disablePerformanceObserver: false
     },
     ajax: {
       enable: true,
@@ -50,19 +57,37 @@ export function createDefaultConfig(): MonitorConfig {
       timeout: 15000,
       ignoreList: [],
       withFetch: true,
-      withXHR: true
+      withXHR: true,
+      invalid: true,
+      autoBusinessCode: false,
+      parseResponse(res: unknown) {
+        const o = res as Record<string, unknown> | null;
+        if (!o || typeof o !== "object") return {};
+        return { code: (o.code ?? o.status) as string | number | undefined };
+      },
+      enableLogTrace: false
     },
     image: {
       enable: true,
       maxSize: 2048,
-      maxDuration: 30000
+      maxDuration: 30000,
+      fileSize: 100,
+      filter: null
     },
     error: {
       enable: true,
       sample: 1,
       maxQueueLength: 20,
       ignoreList: [],
-      maxRepeat: 5
+      maxRepeat: 5,
+      noScriptError: true,
+      formatUnhandledRejection: false,
+      combo: false,
+      maxNum: 100,
+      maxTime: 60000,
+      delay: 1000,
+      maxSize: 10240,
+      disableCache: true
     },
     metric: {
       enable: true,

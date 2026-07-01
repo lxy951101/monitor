@@ -11,7 +11,7 @@ import { appendQueryParams, type QueryParams } from "@monitor/protocol";
 
 type ApiKey = keyof typeof API_PATHS;
 type RandomFn = () => number;
-type SampleKey = "page" | "resource" | "ajax" | "error" | "metric";
+type SampleKey = "page" | "resource" | "ajax" | "api" | "error" | "metric";
 export type SamplePatch = Partial<Record<SampleKey, number>>;
 
 export type CoreConfig = MonitorConfig & {
@@ -189,7 +189,10 @@ export class CfgManager {
   }
 
   private getSampleValue(key: SampleKey, project: string): number {
-    return this.sampleMap.get(project)?.[key] ?? this.config[key]?.sample ?? 1;
+    const fromMap = this.sampleMap.get(project)?.[key];
+    if (fromMap !== undefined) return fromMap;
+    if (key === "api") return this.config.resource?.sampleApi ?? 1;
+    return (this.config as unknown as Record<string, { sample?: number }>)[key]?.sample ?? 1;
   }
 
   private syncProjectSampling(previousProject: string): void {
@@ -206,7 +209,7 @@ export class CfgManager {
   private applySampling(sampling: SamplePatch): void {
     for (const [key, sample] of Object.entries(sampling) as Array<[SampleKey, number]>) {
       if (sample !== undefined) {
-        this.config[key].sample = sample;
+        (this.config as unknown as Record<string, { sample?: number }>)[key].sample = sample;
       }
     }
   }

@@ -20,6 +20,18 @@ export interface ConsoleLike {
 
 export interface ErrorCaptureOptions {
   addError: (error: unknown, options?: Record<string, unknown>) => void;
+  /** 对齐 owl.js parseWindowError — 携带完整 onerror 参数 */
+  onWindowError?: (
+    msg: string | Event,
+    source?: string,
+    lineno?: number,
+    colno?: number,
+    error?: unknown
+  ) => void;
+  /** 对齐 owl.js parsePromiseUnhandled — 接收完整 PromiseRejectionEvent */
+  onUnhandledRejection?: (event: PromiseRejectionEvent) => void;
+  /** 对齐 owl.js parseConsoleError — 接收 console.error 全部参数 */
+  onConsoleError?: (...args: unknown[]) => void;
   target?: ErrorCaptureTarget;
   console?: ConsoleLike;
   captureConsoleError?: boolean;
@@ -32,6 +44,9 @@ export interface ErrorCapture {
 
 interface CaptureSubscription {
   addError: ErrorCaptureOptions["addError"];
+  onWindowError?: ErrorCaptureOptions["onWindowError"];
+  onUnhandledRejection?: ErrorCaptureOptions["onUnhandledRejection"];
+  onConsoleError?: ErrorCaptureOptions["onConsoleError"];
   captureConsoleError: boolean;
 }
 
@@ -54,6 +69,9 @@ export function createErrorCapture(options: ErrorCaptureOptions): ErrorCapture {
   const consoleLike = options.console ?? getRuntimeConsole();
   const subscription: CaptureSubscription = {
     addError: options.addError,
+    onWindowError: options.onWindowError,
+    onUnhandledRejection: options.onUnhandledRejection,
+    onConsoleError: options.onConsoleError,
     captureConsoleError: options.captureConsoleError === true
   };
   let started = false;
@@ -118,13 +136,27 @@ function patchTarget(target: ErrorCaptureTarget): TargetPatchState {
 
   target.onerror = (event, source, lineno, colno, error) => {
     for (const subscription of [...state.subscriptions]) {
-      subscription.addError(error ?? event, { source, rowNum: lineno, colNum: colno });
+      if (subscription.onWindowError) {
+        subscription.onWindowError(event, source, lineno, colno, error);
+      } else {
+        subscription.addError(error ?? event, {
+          source,
+          rowNum: lineno,
+          colNum: colno
+        });
+      }
     }
     return state.originalOnError?.(event, source, lineno, colno, error);
   };
   target.onunhandledrejection = (event) => {
     for (const subscription of [...state.subscriptions]) {
-      subscription.addError(event.reason, { category: "unhandledrejection" });
+      if (subscription.onUnhandledRejection) {
+        subscription.onUnhandledRejection(event);
+      } else {
+        subscription.addError(event.reason, {
+          category: "unhandledrejection"
+        });
+      }
     }
     return state.originalOnRejection?.(event);
   };
@@ -169,7 +201,14 @@ function patchConsole(consoleLike: ConsoleLike): ConsolePatchState {
 
   consoleLike.error = (...args: unknown[]) => {
     for (const subscription of [...state.subscriptions]) {
-      subscription.addError(args.length === 1 ? args[0] : args, { category: "consoleError" });
+      if (subscription.onConsoleError) {
+        subscription.onConsoleError(...args);
+      } else {
+        subscription.addError(
+          args.length === 1 ? args[0] : args,
+          { category: "consoleError" }
+        );
+      }
     }
     state.originalError(...args);
   };

@@ -1,11 +1,14 @@
 export interface AjaxCall {
   method: string;
   url: string;
-  statusCode: number;
+  statusCode: number | string;
   duration: number;
   requestbyte: number;
   responsebyte: number;
   type: "ajax";
+  firstCategory?: string;
+  logContent?: string;
+  traceid?: string;
 }
 
 export interface AjaxInterceptorOptions {
@@ -13,6 +16,20 @@ export interface AjaxInterceptorOptions {
   onCall: (call: AjaxCall) => void;
   shouldIgnore?: (url: string) => boolean;
   now?: () => number;
+  /** 是否捕获 abort 事件 (owl: catchAbort) */
+  catchAbort?: boolean;
+  /** 是否捕获 timeout 事件 (owl: catchTimeout) */
+  catchTimeout?: boolean;
+  /** 是否注入 M-TRACEID + M-APPKEY 请求头 (owl: enableLogTrace) */
+  enableLogTrace?: boolean;
+  /** 项目名，用于构造 M-APPKEY */
+  project?: string;
+  /** 是否启用 HTTP 状态码检测 (owl: enableStatusCheck) */
+  enableStatusCheck?: boolean;
+  /** 是否自动解析业务码 (owl: autoBusinessCode) */
+  autoBusinessCode?: boolean;
+  /** 业务码解析器 (owl: parseResponse) */
+  parseResponse?: (res: unknown) => { code?: string | number };
 }
 
 export interface AjaxInterceptor {
@@ -21,25 +38,21 @@ export interface AjaxInterceptor {
   isStarted: () => boolean;
 }
 
-export function createAjaxInterceptor(options: AjaxInterceptorOptions): AjaxInterceptor {
+export function createAjaxInterceptor(
+  options: AjaxInterceptorOptions
+): AjaxInterceptor {
   const OriginalXHR = options.window.XMLHttpRequest;
   const now = options.now ?? Date.now;
   let started = false;
 
   return {
     start() {
-      if (started) {
-        return;
-      }
-
+      if (started) return;
       started = true;
       options.window.XMLHttpRequest = createPatchedXHR(OriginalXHR, options, now);
     },
     stop() {
-      if (!started) {
-        return;
-      }
-
+      if (!started) return;
       options.window.XMLHttpRequest = OriginalXHR;
       started = false;
     },
@@ -59,64 +72,182 @@ function createPatchedXHR(
     patchInstance(xhr, options, now);
     return xhr;
   }
-
   PatchedXMLHttpRequest.prototype = OriginalXHR.prototype;
   return PatchedXMLHttpRequest as unknown as new () => XMLHttpRequest;
 }
 
-function patchInstance(xhr: XMLHttpRequest, options: AjaxInterceptorOptions, now: () => number): void {
+function patchInstance(
+  xhr: XMLHttpRequest,
+  options: AjaxInterceptorOptions,
+  now: () => number
+): void {
   const originalOpen = xhr.open;
   const originalSend = xhr.send;
   let method = "GET";
   let url = "";
   let startTime = 0;
 
-  xhr.open = function patchedOpen(this: XMLHttpRequest, nextMethod: string, nextUrl: string | URL) {
+  xhr.open = function patchedOpen(
+    this: XMLHttpRequest,
+    nextMethod: string,
+    nextUrl: string | URL
+  ) {
     method = nextMethod;
     url = String(nextUrl);
-    return originalOpen.apply(this, arguments as unknown as Parameters<XMLHttpRequest["open"]>);
+    // trace 注入 (对齐 owl.js: enableLogTrace)
+    if (
+      options.enableLogTrace &&
+      options.project &&
+      isSameOrigin(url)
+    ) {
+      try {
+        const id = generateTraceId();
+        if (id) {
+          xhr.setRequestHeader("M-TRACEID", id);
+          xhr.setRequestHeader("M-APPKEY", `fe_${options.project}`);
+          (xhr as unknown as Record<string, unknown>).traceid = id;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return originalOpen.apply(
+      this,
+      arguments as unknown as Parameters<XMLHttpRequest["open"]>
+    );
   } as XMLHttpRequest["open"];
 
-  xhr.send = function patchedSend(this: XMLHttpRequest, body?: Document | XMLHttpRequestBodyInit | null) {
+  xhr.send = function patchedSend(
+    this: XMLHttpRequest,
+    body?: Document | XMLHttpRequestBodyInit | null
+  ) {
     startTime = now();
-    attachLoadEnd(xhr, () => {
-      if (!url || options.shouldIgnore?.(url)) {
-        return;
+
+    const dispatchEvent = (event: Event & { type: string }) => {
+      if (!event) return;
+      if (options.shouldIgnore?.(url)) return;
+
+      const duration = Math.max(0, now() - startTime);
+      const target = xhr;
+      const status = target.status;
+      const state = event.type;
+
+      // 错误分级 (对齐 owl.js parseAjax)
+      const resCfg = options.enableStatusCheck;
+      let isSuccess: boolean;
+      let httpCode: number;
+      let businessCode: string | number | undefined;
+
+      if (resCfg) {
+        httpCode = status || (state === "load" ? 200 : 500);
+        isSuccess =
+          (state === "load" || state === "readystatechange") &&
+          ((httpCode >= 200 && httpCode < 300) || httpCode === 304);
+      } else {
+        isSuccess =
+          state === "load" ||
+          (state === "readystatechange" && status === 200);
+        httpCode = isSuccess ? 200 : 500;
       }
+
+      // 业务码解析 (对齐 owl.js autoBusinessCode)
+      if (
+        isSuccess &&
+        options.autoBusinessCode &&
+        typeof target.getResponseHeader === "function" &&
+        typeof options.parseResponse === "function"
+      ) {
+        try {
+          const contentType = target.getResponseHeader("Content-Type");
+          if (contentType && /(text)|(json)/.test(contentType)) {
+            let response = target.responseText ?? target.response;
+            if (response) {
+              try {
+                response =
+                  typeof response === "string"
+                    ? JSON.parse(response)
+                    : response;
+              } catch {
+                // not JSON, keep as-is
+              }
+              const result = options.parseResponse(response);
+              businessCode = result?.code;
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      const statusCode = `${httpCode}|${businessCode ?? ""}`;
+      const firstCategory = isSuccess ? "" : "ajaxError";
+      const logContent = isSuccess
+        ? ""
+        : `from: xhr ${state}.${target.statusText ? ` ${httpCode} ${target.statusText}` : ""}`;
 
       options.onCall({
         method,
         url,
-        statusCode: xhr.status,
-        duration: Math.max(0, now() - startTime),
+        statusCode,
+        duration,
         requestbyte: estimateBodySize(body),
-        responsebyte: estimateBodySize(xhr.responseText),
-        type: "ajax"
+        responsebyte: estimateBodySize(target.responseText),
+        type: "ajax",
+        firstCategory,
+        logContent,
+        traceid: (target as unknown as Record<string, unknown>).traceid as string | undefined
       });
-    });
+    };
+
+    // 事件监听 (对齐 owl.js: load + error + abort + timeout)
+    const EVENT_LISTENER = "addEventListener";
+    const STATE_CHANGE = "onreadystatechange";
+
+    if (EVENT_LISTENER in xhr) {
+      xhr.addEventListener("load", dispatchEvent as EventListener);
+      xhr.addEventListener("error", dispatchEvent as EventListener);
+      if (options.catchAbort) {
+        xhr.addEventListener("abort", dispatchEvent as EventListener);
+      }
+      if (options.catchTimeout) {
+        xhr.addEventListener("timeout", dispatchEvent as EventListener);
+      }
+    } else {
+      // IE fallback
+      const raw = xhr as unknown as Record<string, unknown>;
+      const originStateChange = raw[STATE_CHANGE] as
+        | ((event: Event) => void)
+        | undefined;
+      raw[STATE_CHANGE] = function (this: XMLHttpRequest, event: Event) {
+        if (this.readyState === 4) {
+          dispatchEvent(event as Event & { type: string });
+        }
+        originStateChange?.call(this, event);
+      };
+    }
+
     return originalSend.call(this, body);
   } as XMLHttpRequest["send"];
 }
 
-function attachLoadEnd(xhr: XMLHttpRequest, listener: () => void): void {
-  if (typeof xhr.addEventListener === "function") {
-    xhr.addEventListener("loadend", listener);
-    return;
-  }
-
-  const originalReadyStateChange = xhr.onreadystatechange;
-  xhr.onreadystatechange = function patchedReadyStateChange(event: Event) {
-    originalReadyStateChange?.call(this, event);
-    if (xhr.readyState === 4) {
-      listener();
-    }
-  };
+function estimateBodySize(body: unknown): number {
+  if (body === undefined || body === null) return 0;
+  return typeof body === "string" ? body.length : JSON.stringify(body).length;
 }
 
-function estimateBodySize(body: unknown): number {
-  if (body === undefined || body === null) {
-    return 0;
+function isSameOrigin(url: string): boolean {
+  try {
+    const target = new URL(url, location.origin);
+    return target.origin === location.origin;
+  } catch {
+    return false;
   }
+}
 
-  return typeof body === "string" ? body.length : JSON.stringify(body).length;
+function generateTraceId(): string {
+  const s4 = () =>
+    Math.floor((1 + Math.random()) * 0x10000)
+      .toString(16)
+      .substring(1);
+  return `${s4()}${s4()}-${s4()}-${s4()}-${s4()}-${s4()}${s4()}${s4()}`;
 }

@@ -28,10 +28,17 @@ export interface SpaConfig {
 export interface ResourceConfig {
   enable: boolean;
   sample: number;
+  sampleApi: number;
   batchSize: number;
   delay: number;
+  combo: boolean;
   resourceReg: RegExp;
   ignoreList: Array<string | RegExp>;
+  catchAbort: boolean;
+  catchTimeout: boolean;
+  enableStatusCheck: boolean;
+  ignoreMTSIForbidRequest: boolean;
+  disablePerformanceObserver: boolean;
 }
 
 export interface AjaxConfig {
@@ -41,12 +48,18 @@ export interface AjaxConfig {
   ignoreList: Array<string | RegExp>;
   withFetch: boolean;
   withXHR: boolean;
+  invalid: boolean;
+  autoBusinessCode: boolean;
+  parseResponse: (res: unknown) => { code?: string | number };
+  enableLogTrace: boolean;
 }
 
 export interface ImageConfig {
   enable: boolean;
   maxSize: number;
   maxDuration: number;
+  fileSize: number;
+  filter: ((url: string) => boolean) | null;
 }
 
 export interface ErrorConfig {
@@ -55,6 +68,14 @@ export interface ErrorConfig {
   maxQueueLength: number;
   ignoreList: Array<string | RegExp>;
   maxRepeat: number;
+  noScriptError: boolean;
+  formatUnhandledRejection: boolean;
+  combo: boolean;
+  maxNum: number;
+  maxTime: number;
+  delay: number;
+  maxSize: number;
+  disableCache: boolean;
 }
 
 export interface MetricConfig {
