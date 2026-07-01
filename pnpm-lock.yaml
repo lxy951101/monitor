@@ -45,6 +45,43 @@ importers:
         specifier: ^8.1.0
         version: 8.1.2(@types/node@22.20.0)
 
+  packages/bundle:
+    dependencies:
+      '@monitor/plugin-error':
+        specifier: workspace:*
+        version: link:../plugin-error
+      '@monitor/plugin-metric':
+        specifier: workspace:*
+        version: link:../plugin-metric
+      '@monitor/plugin-page':
+        specifier: workspace:*
+        version: link:../plugin-page
+      '@monitor/plugin-perf-cache':
+        specifier: workspace:*
+        version: link:../plugin-perf-cache
+      '@monitor/plugin-perf-fsp':
+        specifier: workspace:*
+        version: link:../plugin-perf-fsp
+      '@monitor/plugin-perf-ird':
+        specifier: workspace:*
+        version: link:../plugin-perf-ird
+      '@monitor/plugin-perf-shr':
+        specifier: workspace:*
+        version: link:../plugin-perf-shr
+      '@monitor/plugin-pv':
+        specifier: workspace:*
+        version: link:../plugin-pv
+      '@monitor/plugin-resource':
+        specifier: workspace:*
+        version: link:../plugin-resource
+      '@monitor/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+    devDependencies:
+      '@monitor/build-config':
+        specifier: workspace:*
+        version: link:../build-config
+
   packages/config:
     devDependencies:
       '@monitor/build-config':
