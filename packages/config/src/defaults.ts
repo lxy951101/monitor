@@ -1,6 +1,4 @@
 import {
-  HORN_URL,
-  LOGAN_CDN_PREFIXES,
   PERF_DEFAULT_ENDPOINTS,
   getReportBaseUrl
 } from "./endpoints";
@@ -11,7 +9,6 @@ export function createDefaultConfig(): MonitorConfig {
     project: "",
     devMode: false,
     reportBaseUrl: getReportBaseUrl(false),
-    hornUrl: HORN_URL,
     envFilterName: "default",
     filters: {},
     disabledFilters: [],
@@ -100,12 +97,6 @@ export function createDefaultConfig(): MonitorConfig {
       enable: true,
       sample: 1,
       tags: {}
-    },
-    logan: {
-      enable: false,
-      version: "1.0.0",
-      cdnPrefixes: [...LOGAN_CDN_PREFIXES],
-      autoLoad: false
     },
     perf: createDefaultPerfConfig(),
     bridge: {

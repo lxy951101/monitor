@@ -8,11 +8,11 @@ import {
 
 describe("配置包", () => {
   it("默认使用生产上报域名", () => {
-    expect(getReportBaseUrl(false)).toBe("https://catfront.dianping.com");
+    expect(getReportBaseUrl(false)).toBe("https://report.example.com");
   });
 
   it("开发模式使用测试上报域名", () => {
-    expect(getReportBaseUrl(true)).toBe("https://catfront.51ping.com");
+    expect(getReportBaseUrl(true)).toBe("https://report-dev.example.com");
   });
 
   it("深合并用户配置且保留 compat 默认值", () => {
@@ -64,7 +64,6 @@ describe("配置包", () => {
         image: expect.any(Object),
         error: expect.any(Object),
         metric: expect.any(Object),
-        logan: expect.any(Object),
         perf: expect.any(Object),
         bridge: expect.any(Object),
         compat: expect.any(Object)
@@ -156,15 +155,6 @@ describe("配置包", () => {
     config.perf.fsp2.customTags.env = "test";
 
     expect(base.perf.fsp2.customTags.env).toBeUndefined();
-  });
-
-  it("多次创建默认配置时 logan.cdnPrefixes 不共享可变数组引用", () => {
-    const first = createDefaultConfig();
-    const second = createDefaultConfig();
-
-    (first.logan.cdnPrefixes as unknown as string[]).push("//example.com/logan_");
-
-    expect(second.logan.cdnPrefixes).not.toContain("//example.com/logan_");
   });
 
   it("非法 resourceReg 字符串抛出 SyntaxError", () => {

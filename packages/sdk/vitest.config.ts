@@ -6,8 +6,6 @@ export default defineConfig({
       "@monitor/config": new URL("../config/src/index.ts", import.meta.url).pathname,
       "@monitor/core": new URL("../core/src/index.ts", import.meta.url).pathname,
       "@monitor/plugin-error": new URL("../plugin-error/src/index.ts", import.meta.url).pathname,
-      "@monitor/plugin-horn": new URL("../plugin-horn/src/index.ts", import.meta.url).pathname,
-      "@monitor/plugin-logan": new URL("../plugin-logan/src/index.ts", import.meta.url).pathname,
       "@monitor/plugin-metric": new URL("../plugin-metric/src/index.ts", import.meta.url).pathname,
       "@monitor/plugin-page": new URL("../plugin-page/src/index.ts", import.meta.url).pathname,
       "@monitor/plugin-perf-cache": new URL("../plugin-perf-cache/src/index.ts", import.meta.url).pathname,

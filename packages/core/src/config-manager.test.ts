@@ -5,11 +5,11 @@ describe("CfgManager", () => {
   it("读取和更新配置，并按 devMode 切换上报域名", () => {
     const cfg = new CfgManager({ project: "demo", devMode: false });
 
-    expect(cfg.getConfig("reportBaseUrl")).toBe("https://catfront.dianping.com");
+    expect(cfg.getConfig("reportBaseUrl")).toBe("https://report.example.com");
 
     cfg.updateConfig({ devMode: true, page: { delay: 20 } });
 
-    expect(cfg.getConfig("reportBaseUrl")).toBe("https://catfront.51ping.com");
+    expect(cfg.getConfig("reportBaseUrl")).toBe("https://report-dev.example.com");
     expect(cfg.getConfig("page").delay).toBe(20);
   });
 
@@ -19,7 +19,7 @@ describe("CfgManager", () => {
     const first = cfg.getApiPath("log", { extra: "ok" });
     const second = cfg.getApiPath("log");
 
-    expect(first).toContain("https://catfront.dianping.com/api/log?");
+    expect(first).toContain("https://report.example.com/api/log?");
     expect(first).toContain("project=demo");
     expect(first).toContain("webVersion=1.2.3");
     expect(first).toContain("extra=ok");

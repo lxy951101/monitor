@@ -84,13 +84,6 @@ export interface MetricConfig {
   tags: Record<string, string>;
 }
 
-export interface LoganConfig {
-  enable: boolean;
-  version: string;
-  cdnPrefixes: readonly string[];
-  autoLoad: boolean;
-}
-
 export interface PerfFeatureConfig {
   enable: boolean;
   sample: number;
@@ -129,7 +122,6 @@ export interface MonitorConfig {
   project: string;
   devMode: boolean;
   reportBaseUrl: string;
-  hornUrl: string;
   envFilterName: string;
   filters: Record<string, FilterFn>;
   disabledFilters: string[];
@@ -137,7 +129,7 @@ export interface MonitorConfig {
   webVersion: string;
   /** 自定义维度回调，每次上报时调用，返回的 kv 合并到上报数据 */
   setCustomTags: (() => Record<string, string>) | null;
-  /** 全局禁用 localStorage 缓存（批量队列、Horn 配置等） */
+  /** 全局禁用 localStorage 缓存 */
   disableCache: boolean;
   autoCatch: AutoCatchConfig;
   page: PageConfig;
@@ -147,7 +139,6 @@ export interface MonitorConfig {
   image: ImageConfig;
   error: ErrorConfig;
   metric: MetricConfig;
-  logan: LoganConfig;
   perf: PerfConfig;
   bridge: BridgeConfig;
   compat: CompatConfig;

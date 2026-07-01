@@ -47,14 +47,14 @@ describe("ResourceManager", () => {
     const manager = new ResourceManager({
       project: "demo",
       pageUrl: "/home",
-      reportBaseUrl: "https://catfront.dianping.com",
+      reportBaseUrl: "https://report.example.com",
       devMode: true,
       resource: { sampleApi: 1, combo: true },
       send
     });
 
     manager.pushApi({
-      resourceUrl: "https://catfront.dianping.com/batchts",
+      resourceUrl: "https://report.example.com/batchts",
       type: "ajax"
     });
     manager.pushApi({ resourceUrl: "/api/order", type: "ajax" });

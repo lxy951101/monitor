@@ -1,5 +1,3 @@
-import { createHornPlugin } from "@monitor/plugin-horn";
-import { createLoganPlugin } from "@monitor/plugin-logan";
 import { createMetricPlugin, type MetricManager } from "@monitor/plugin-metric";
 import { createPagePlugin } from "@monitor/plugin-page";
 import { PerfCache } from "@monitor/plugin-perf-cache";
@@ -22,8 +20,6 @@ export function registerDefaultPlugins(client: MonitorClient): DefaultPluginRefs
   const perfCache = new PerfCache();
 
   client
-    .use(createHornPlugin())
-    .use(createLoganPlugin())
     .use(createErrorPlugin({ onReady: (manager) => client.attachErrorManager(manager) }))
     .use(createPagePlugin())
     .use(createResourcePlugin())

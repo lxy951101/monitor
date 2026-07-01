@@ -15,7 +15,6 @@ MonitorConfig
 ├── project: string              项目名
 ├── devMode: boolean             开发模式（切换上报域名）
 ├── reportBaseUrl: string        上报域名
-├── hornUrl: string              Horn 特征开关服务地址
 ├── envFilterName: string        环境过滤器名
 ├── filters: Record<string, fn>  命名过滤器集合
 ├── disabledFilters: string[]    禁用的内置过滤器名
@@ -30,7 +29,6 @@ MonitorConfig
 ├── image:    { enable, maxSize, maxDuration, fileSize, filter }
 ├── error:    { enable, sample, maxQueueLength, ignoreList, maxRepeat, noScriptError, ... }
 ├── metric:   { enable, sample, tags }
-├── logan:    { enable, version, cdnPrefixes, autoLoad }
 ├── perf:     { fsp2, ird, shr, cache }
 ├── bridge:   { enable, preferredMethod }
 └── compat:   { legacyOwlAlias, monitorQueue }
@@ -44,8 +42,6 @@ MonitorConfig
 | `REPORT_BASE_URLS.production` | 生产环境上报域名 |
 | `REPORT_BASE_URLS.development` | 测试环境上报域名 |
 | `API_PATHS` | 各数据类型的 API 路径映射 |
-| `HORN_URL` | Horn 特征开关地址 |
-| `LOGAN_CDN_PREFIXES` | Logan CDN 前缀列表 |
 | `PERF_DEFAULT_ENDPOINTS` | Perf (FSP2/IRD/SHR) 默认端点 |
 
 ## 使用示例
