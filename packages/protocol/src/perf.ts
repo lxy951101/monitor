@@ -40,6 +40,10 @@ export interface CreateFsp2BridgeEventInput {
   appId: string;
   pagePath?: string;
   pageUrl?: string;
+  userAgent?: string;
+  sdkVersion?: string;
+  pageNavStart?: number;
+  isOffline?: boolean;
   sampleRate?: number;
   tags?: PerfEnv;
   metrics: Fsp2BridgeMetrics;
@@ -89,6 +93,18 @@ export function createFsp2BridgeEvent(input: CreateFsp2BridgeEventInput): Fsp2Br
   }
   if (input.pageUrl) {
     event.pageUrl = input.pageUrl;
+  }
+  if (input.userAgent) {
+    event.userAgent = input.userAgent;
+  }
+  if (input.sdkVersion) {
+    event.sdkVersion = input.sdkVersion;
+  }
+  if (typeof input.pageNavStart === "number") {
+    event.pageNavStart = input.pageNavStart;
+  }
+  if (typeof input.isOffline === "boolean") {
+    event.isOffline = input.isOffline;
   }
   if (typeof input.metrics.pageLoadedTime === "number") {
     event.detect_cls = true;

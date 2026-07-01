@@ -198,6 +198,41 @@ describe("秒开 2.0", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
+  it("未显式配置桥时从 runtime 自动发现并补充页面元信息", async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const ffpRecord = vi.fn((_event: unknown, callbacks: { success: () => void }) => {
+      callbacks.success();
+    });
+    const element = createElement(0, 0, 300, 600, "IMG");
+    const runtime = createDomRuntime({
+      elementsFromPoint: () => [element],
+      containerBridge: { "ffp.record": ffpRecord },
+      location: { href: "https://example.com/home?tab=1", pathname: "/home" },
+      navigator: { userAgent: "demo-agent", onLine: false },
+      performance: { timeOrigin: 90, timing: { navigationStart: 80 } }
+    });
+    const plugin = createFsp2Plugin({
+      runtime,
+      now: () => 100,
+      metadata: { sdkVersion: "1.0.0" }
+    });
+
+    plugin.start(createContext(send, { defer: false }));
+
+    await vi.waitFor(() => {
+      expect(ffpRecord.mock.calls.at(-1)?.[0]).toMatchObject({
+        eType: "success",
+        pagePath: "/home",
+        pageUrl: "https://example.com/home?tab=1",
+        userAgent: "demo-agent",
+        sdkVersion: "1.0.0",
+        pageNavStart: 80,
+        isOffline: true
+      });
+    });
+    expect(send).not.toHaveBeenCalled();
+  });
+
   it("静态页初始预检通过宫格内点位和底部点位直接上报 success", async () => {
     const send = vi.fn().mockResolvedValue(undefined);
     const element = createElement(0, 0, 300, 600, "IMG");
@@ -206,7 +241,7 @@ describe("秒开 2.0", () => {
     });
     const plugin = createFsp2Plugin({ runtime, now: () => 100 });
 
-    plugin.start(createContext(send));
+    plugin.start(createContext(send, { defer: false }));
 
     await vi.waitFor(() => {
       expect(JSON.parse(send.mock.calls[0][0].body).logs[0]).toMatchObject({
@@ -302,13 +337,129 @@ describe("秒开 2.0", () => {
       });
     });
   });
+
+  it("defer=true 时延迟启动首屏检测", async () => {
+    let deferCallback: (() => void) | undefined;
+    const send = vi.fn().mockResolvedValue(undefined);
+    const element = createElement(0, 0, 300, 600, "IMG");
+    const runtime = createDomRuntime({
+      elementsFromPoint: () => [element],
+      setTimeout: (callback, delay) => {
+        if (delay === 0) {
+          deferCallback = callback;
+        }
+        return 1 as unknown as ReturnType<typeof setTimeout>;
+      }
+    });
+    const plugin = createFsp2Plugin({ runtime, now: () => 100 });
+
+    plugin.start(createContext(send, { defer: true }));
+    expect(send).not.toHaveBeenCalled();
+
+    deferCallback?.();
+
+    await vi.waitFor(() => {
+      expect(JSON.parse(send.mock.calls[0][0].body).logs[0].status).toBe("success");
+    });
+  });
+
+  it("容器桥上报 start 和 notsupport 生命周期事件", async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const ffpRecord = vi.fn((_event: unknown, callbacks: { success: () => void }) => {
+      callbacks.success();
+    });
+    const runtime = createDomRuntime({ elementsFromPoint: undefined });
+    (runtime.document as { elementsFromPoint?: (x: number, y: number) => Element[] }).elementsFromPoint = undefined;
+    const plugin = createFsp2Plugin({
+      runtime,
+      now: () => 100,
+      containerBridge: { "ffp.record": ffpRecord }
+    });
+
+    plugin.start(createContext(send, { defer: false }));
+
+    await vi.waitFor(() => {
+      expect(ffpRecord).toHaveBeenCalledTimes(2);
+    });
+    expect(ffpRecord.mock.calls[0][0]).toMatchObject({ eType: "start", createMs: 100 });
+    expect(ffpRecord.mock.calls[1][0]).toMatchObject({ eType: "notsupport", createMs: 100 });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("容器桥事件携带真实 costMs", async () => {
+    let mutationCallback: ((records: MutationRecord[]) => void) | undefined;
+    const ticks = [100, 100, 100, 220, 220, 225, 225];
+    const now = vi.fn(() => ticks.shift() ?? 225);
+    const send = vi.fn().mockResolvedValue(undefined);
+    const ffpRecord = vi.fn((_event: unknown, callbacks: { success: () => void }) => {
+      callbacks.success();
+    });
+    const element = createElement(0, 0, 300, 600, "IMG");
+    const runtime = createDomRuntime({
+      mutationCallback: (callback) => {
+        mutationCallback = callback;
+      }
+    });
+    const plugin = createFsp2Plugin({
+      runtime,
+      now,
+      containerBridge: { "ffp.record": ffpRecord }
+    });
+
+    plugin.start(createContext(send, { defer: false }));
+    mutationCallback?.([createChildListRecord(runtime.document.body, element)]);
+
+    await vi.waitFor(() => {
+      expect(ffpRecord.mock.calls.at(-1)?.[0]).toMatchObject({
+        eType: "success",
+        costMs: 5
+      });
+    });
+  });
+
+  it("fspClsEnable=true 时等待 5 个稳定周期后再上报 success", async () => {
+    let mutationCallback: ((records: MutationRecord[]) => void) | undefined;
+    let clsIntervalCallback: (() => void) | undefined;
+    let now = 100;
+    const send = vi.fn().mockResolvedValue(undefined);
+    const element = createElement(0, 0, 300, 600, "IMG");
+    const runtime = createDomRuntime({
+      mutationCallback: (callback) => {
+        mutationCallback = callback;
+      },
+      setInterval: (callback) => {
+        clsIntervalCallback = callback;
+        return 2 as unknown as ReturnType<typeof setInterval>;
+      }
+    });
+    const plugin = createFsp2Plugin({ runtime, now: () => now });
+
+    plugin.start(createContext(send, { fspClsEnable: true }));
+    now = 220;
+    mutationCallback?.([createChildListRecord(runtime.document.body, element)]);
+    expect(send).not.toHaveBeenCalled();
+
+    now = 1220;
+    for (let index = 0; index < 5; index += 1) {
+      clsIntervalCallback?.();
+    }
+
+    await vi.waitFor(() => {
+      expect(JSON.parse(send.mock.calls[0][0].body).logs[0]).toMatchObject({
+        status: "success",
+        ffp_page_stable: true,
+        ffp_loaded_time: 220,
+        ffp_loaded_stable_gap: 0
+      });
+    });
+  });
 });
 
 function createContext(send: ReturnType<typeof vi.fn>, fsp2: Record<string, unknown> = {}) {
   return {
     cfgManager: new CfgManager({
       project: "demo",
-      perf: { fsp2: { endpoint: "/perf/fsp2", timeout: 1000, ...fsp2 } }
+      perf: { fsp2: { endpoint: "/perf/fsp2", timeout: 1000, defer: false, fspClsEnable: false, ...fsp2 } }
     }),
     eventBus: new EventBus(),
     logger: new Logger(false),
@@ -354,6 +505,11 @@ function createDomRuntime(options: {
   setTimeout?: (callback: () => void, delay: number) => ReturnType<typeof setTimeout>;
   windowAddEventListener?: (type: string, callback: () => void) => void;
   documentAddEventListener?: (type: string, callback: () => void) => void;
+  setInterval?: (callback: () => void, delay: number) => ReturnType<typeof setInterval>;
+  containerBridge?: Record<string, unknown>;
+  location?: { href: string; pathname: string };
+  navigator?: { userAgent: string; onLine: boolean };
+  performance?: { timeOrigin?: number; timing?: { navigationStart?: number } };
 } = {}) {
   const body = options.body ?? createElement(0, 0, 300, 600, "BODY");
   return {
@@ -368,6 +524,10 @@ function createDomRuntime(options: {
     },
     innerWidth: 300,
     innerHeight: 600,
+    containerBridge: options.containerBridge,
+    location: options.location,
+    navigator: options.navigator,
+    performance: options.performance,
     MutationObserver: class {
       constructor(callback: (records: MutationRecord[]) => void) {
         options.mutationCallback?.(callback);
@@ -385,7 +545,9 @@ function createDomRuntime(options: {
     addEventListener: vi.fn((type, callback) => options.windowAddEventListener?.(type, callback)),
     removeEventListener: vi.fn(),
     setTimeout: vi.fn(options.setTimeout ?? (() => 1 as unknown as ReturnType<typeof setTimeout>)),
-    clearTimeout: vi.fn()
+    clearTimeout: vi.fn(),
+    setInterval: vi.fn(options.setInterval ?? (() => 2 as unknown as ReturnType<typeof setInterval>)),
+    clearInterval: vi.fn()
   };
 }
 

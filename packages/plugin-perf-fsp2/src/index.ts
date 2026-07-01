@@ -14,7 +14,7 @@ import { watchFsp2Runtime, type Fsp2Runtime } from "./fsp2-runtime";
 export const packageName = "@monitor/plugin-perf-fsp2";
 
 type SendFn = (request: TransportRequest) => Promise<TransportResponse | void>;
-export type Fsp2Status = "success" | "timeout" | "hidden" | "interact";
+export type Fsp2Status = "start" | "success" | "timeout" | "hidden" | "interact" | "notsupport" | "error";
 export type BeforeSendFsp2 = (metrics: Fsp2Metrics) => Fsp2Metrics | false | void;
 
 export interface Fsp2Input {
@@ -27,6 +27,7 @@ export interface Fsp2Input {
   detector?: Fsp2DetectorSnapshot;
   mutationCount?: number;
   cls?: Fsp2ClsMetrics;
+  costMs?: number;
 }
 
 export interface Fsp2ClsMetrics {
@@ -46,12 +47,19 @@ export interface Fsp2ReportInput {
   detector?: Fsp2DetectorSnapshot;
   mutationCount?: number;
   cls?: Fsp2ClsMetrics;
+  costMs?: number;
 }
 
 export interface Fsp2ManagerOptions {
   send: SendFn;
   endpoint: string;
   project?: string;
+  pagePath?: string;
+  pageUrl?: string;
+  userAgent?: string;
+  sdkVersion?: string;
+  pageNavStart?: number;
+  isOffline?: boolean;
   sample?: number;
   timeout?: number;
   tags?: Record<string, string>;
@@ -96,7 +104,8 @@ export class Fsp2Manager {
       status: reportInput.status,
       detector: reportInput.detector,
       mutationCount: reportInput.mutationCount,
-      cls: reportInput.cls
+      cls: reportInput.cls,
+      costMs: reportInput.costMs
     });
     const next = this.options.beforeSend?.(metrics);
     if (next === false) {
@@ -111,6 +120,20 @@ export class Fsp2Manager {
       return;
     }
     await sendWithPerfCache(this.createRequest(finalMetrics), this.options.send, this.options.cache);
+  }
+
+  async reportLifecycle(status: Fsp2Status, timestamp?: number, costMs = 0): Promise<void> {
+    if (!this.options.containerBridge) {
+      return;
+    }
+    await this.options.containerBridge.reportFsp2(this.createBridgeEvent({
+      status,
+      duration: Math.max(0, (timestamp ?? this.options.now?.() ?? Date.now()) - this.startTime),
+      renderRate: 0,
+      reachBottom: "notReached",
+      mutationCount: 0,
+      costMs
+    }, { status, timestamp, costMs }));
   }
 
   private createRequest(metrics: Fsp2Metrics): TransportRequest {
@@ -134,6 +157,12 @@ export class Fsp2Manager {
       type: metrics.status,
       createMs: input.timestamp ?? this.options.now?.() ?? Date.now(),
       appId: this.options.project ?? "",
+      pagePath: this.options.pagePath,
+      pageUrl: this.options.pageUrl,
+      userAgent: this.options.userAgent,
+      sdkVersion: this.options.sdkVersion,
+      pageNavStart: this.options.pageNavStart,
+      isOffline: this.options.isOffline,
       sampleRate: this.options.sample,
       tags: this.options.tags,
       metrics: {
@@ -157,6 +186,16 @@ export interface Fsp2PluginOptions {
   beforeSend?: BeforeSendFsp2;
   runtime?: Fsp2Runtime;
   containerBridge?: BridgeLike;
+  metadata?: Fsp2Metadata;
+}
+
+export interface Fsp2Metadata {
+  pagePath?: string;
+  pageUrl?: string;
+  userAgent?: string;
+  sdkVersion?: string;
+  pageNavStart?: number;
+  isOffline?: boolean;
 }
 
 export function createFsp2Plugin(options: Fsp2PluginOptions = {}): Plugin {
@@ -171,10 +210,12 @@ export function createFsp2Plugin(options: Fsp2PluginOptions = {}): Plugin {
       }
 
       const bridgeConfig = context.cfgManager.getConfig("bridge");
+      const metadata = resolveFsp2Metadata(options);
       manager = new Fsp2Manager({
         send: context.transport.send.bind(context.transport),
         endpoint: perf.fsp2.endpoint,
         project: context.cfgManager.getConfig("project"),
+        ...metadata,
         sample: perf.fsp2.sample,
         timeout: perf.fsp2.timeout,
         tags: perf.fsp2.customTags,
@@ -189,6 +230,7 @@ export function createFsp2Plugin(options: Fsp2PluginOptions = {}): Plugin {
         timeout: perf.fsp2.timeout,
         useIgnore: Boolean(perf.fsp2.useIgnore),
         fspClsEnable: perf.fsp2.fspClsEnable !== false,
+        defer: perf.fsp2.defer !== false,
         runtime: options.runtime,
         now: options.now
       });
@@ -202,7 +244,7 @@ export function createFsp2Plugin(options: Fsp2PluginOptions = {}): Plugin {
 }
 
 export function calculateFsp2(input: Fsp2Input): Fsp2Metrics {
-  const detectorMetrics = createDetectorMetrics(input.detector, input.mutationCount, input.cls);
+  const detectorMetrics = createDetectorMetrics(input.detector, input.mutationCount, input.cls, input.costMs);
   if (input.hidden) {
     return {
       status: "hidden",
@@ -227,7 +269,12 @@ function normalizeReportInput(input?: number | Fsp2ReportInput, detector?: Fsp2D
   return input ?? {};
 }
 
-function createDetectorMetrics(detector?: Fsp2DetectorSnapshot, mutationCount = 0, cls?: Fsp2ClsMetrics): PerfLog {
+function createDetectorMetrics(
+  detector?: Fsp2DetectorSnapshot,
+  mutationCount = 0,
+  cls?: Fsp2ClsMetrics,
+  costMs?: number
+): PerfLog {
   const metrics: PerfLog = {};
   if (detector) {
     metrics.renderRate = detector.renderRate;
@@ -241,6 +288,9 @@ function createDetectorMetrics(detector?: Fsp2DetectorSnapshot, mutationCount = 
     metrics.ffp_page_stable = cls.pageStable;
     metrics.ffp_loaded_stable_gap = cls.loadedStableGap;
   }
+  if (typeof costMs === "number") {
+    metrics.costMs = costMs;
+  }
   return metrics;
 }
 
@@ -249,11 +299,54 @@ function isSampled(sample = 1, random: () => number = Math.random): boolean {
 }
 
 function createFsp2ContainerBridge(options: Fsp2PluginOptions, preferMSI: boolean): ContainerBridgeReporter | undefined {
-  if (!options.containerBridge) {
+  const bridge = options.containerBridge ?? options.runtime?.containerBridge ?? getGlobalContainerBridge();
+  if (!bridge) {
     return undefined;
   }
   return createContainerBridgeReporter({
-    bridge: options.containerBridge,
+    bridge,
     preferMSI
   });
+}
+
+function resolveFsp2Metadata(options: Fsp2PluginOptions): Fsp2Metadata {
+  const runtime = options.runtime ?? getBrowserRuntimeMetadata();
+  return {
+    pagePath: runtime?.location?.pathname,
+    pageUrl: runtime?.location?.href,
+    userAgent: runtime?.navigator?.userAgent,
+    pageNavStart: runtime?.performance?.timing?.navigationStart ?? runtime?.performance?.timeOrigin,
+    isOffline: typeof runtime?.navigator?.onLine === "boolean" ? !runtime.navigator.onLine : undefined,
+    ...options.metadata
+  };
+}
+
+function getBrowserRuntimeMetadata(): Fsp2Runtime | undefined {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+  return {
+    location: window.location,
+    navigator: window.navigator,
+    performance: window.performance,
+    containerBridge: getGlobalContainerBridge(),
+    addEventListener: window.addEventListener.bind(window),
+    removeEventListener: window.removeEventListener.bind(window),
+    setTimeout,
+    clearTimeout
+  };
+}
+
+function getGlobalContainerBridge(): BridgeLike | undefined {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+  const scope = window as unknown as Record<string, unknown>;
+  for (const key of ["MSI", "msi", "KNB", "NativeBridge", "bridge"]) {
+    const bridge = scope[key];
+    if (bridge && typeof bridge === "object") {
+      return bridge as BridgeLike;
+    }
+  }
+  return undefined;
 }
