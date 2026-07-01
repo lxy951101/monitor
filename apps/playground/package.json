@@ -4,8 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "node -e \"console.log('playground shell: no build output yet')\"",
-    "typecheck": "node -e \"console.log('playground shell: no sources yet')\"",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
     "test": "node -e \"console.log('playground shell: no tests yet')\"",
     "dev": "vite"
   },
